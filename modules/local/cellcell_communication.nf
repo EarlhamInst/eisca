@@ -1,5 +1,5 @@
 process CELLCELL_COMMUNICATION {
-    label 'process_medium'
+    label 'process_high'
 
     conda "conda-forge::scanpy conda-forge::python-igraph conda-forge::leidenalg"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?

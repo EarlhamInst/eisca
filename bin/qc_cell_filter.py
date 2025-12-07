@@ -306,7 +306,7 @@ def main(argv=None):
                 adata_s.obs['predicted_doublet'] = predicted_doublets
                 adata_s.obs['predicted_doublet_1'] = [int(x) for x in predicted_doublets] # for ploting due to bugs in scanpy
             except ValueError as e:
-                logger.warn(f"Failed to perform doublet detection due to error: {e}")
+                logger.warning(f"Failed to perform doublet detection due to error: {e}")
 
 
         # create summary csv file for all samples after filtering

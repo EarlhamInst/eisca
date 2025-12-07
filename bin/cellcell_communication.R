@@ -18,12 +18,13 @@ parser$add_argument("--metadata", help="Input metadata csv file")
 parser$add_argument("--gids", help="Input gene ID list csv file")
 parser$add_argument("--cids", help="Input cell ID list csv file")
 parser$add_argument("--group", default="majority_voting", help="Specify the column for grouping the cells")
+parser$add_argument("--n_actgrps", type="integer", default=12, help="Number of top active groups")
 parser$add_argument("--normalize", action="store_true", help="Indicates whether to normalize the counts")
 parser$add_argument("--db", default="human",  choices=c('human', 'mouse'), help="Specify the species of CellChatDB.")
 parser$add_argument("--dbc", help="The categories of CellChatDB, e.g. Secreted Signaling")
 # parser$add_argument("--dbv", help="The version of CellChatDB, e.g. v1")
 parser$add_argument("--dbenps", action="store_true", help="Use all CellChatDB excepting 'Non-protein Signaling'")
-parser$add_argument("--threads", type="integer", default=4, help="Number of threads for parallel runs")
+parser$add_argument("--threads", type="integer", default=12, help="Number of threads for parallel runs")
 parser$add_argument("--mean_method", default="triMean",  choices=c('triMean', 'truncatedMean'), 
         help="Specify the method for calculating the average gene expression per cell group")
 parser$add_argument("--mincells", type="integer", default=10, help="The minimum number of cells required in each cell group")
@@ -43,6 +44,10 @@ genes <- readLines(args$gids)
 cells <- readLines(args$cids)
 rownames(counts) <- genes
 colnames(counts) <- cells
+if ("sample" %in% colnames(meta)) {
+    colnames(meta)[colnames(meta) == "sample"] <- "samples"
+    meta$samples <- as.factor(meta$samples)
+}
 
 
 # normalize the count data if input data is raw counts
@@ -107,156 +112,240 @@ for(sid in unique(meta[[batch]])){
     # Compute the network centrality scores
     cellchat <- netAnalysis_computeCentrality(cellchat, slot.name = "netP")
     groupSize <- as.numeric(table(cellchat@idents))
-    png(file=paste0(path_outdir_s, "/aggregated_network_all.png"), width=8,height=8, units="in", res=100)
-    netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions")
-    dev.off()
-    png(file=paste0(path_outdir_s, "/aggregated_network_all_weights.png"), width=8,height=8, units="in", res=100)
-    netVisual_circle(cellchat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength")
-    dev.off()
 
-    mat <- cellchat@net$weight
-    grpnames <- rownames(mat)
-    Ngrp <- nrow(mat)
     # Identify rows and columns with any non-zero interaction weights
-    row_has_interaction <- rowSums(mat) > 0
-    col_has_interaction <- colSums(mat) > 0
-    active_groups_logical <- row_has_interaction & col_has_interaction
-    actgrp_idx <- as.numeric(which(active_groups_logical))
+    mat <- cellchat@net$count
+    actgrp_idx <- which(rowSums(mat) > 0 & colSums(mat) > 0)
+    mat_active <- mat[actgrp_idx, actgrp_idx]
+    groupSize_active <- groupSize[actgrp_idx]
+    grpnames_active <- rownames(mat_active)
+    activity_score <- rowSums(mat_active) + colSums(mat_active)
+    n_select <- min(args$n_actgrps, length(activity_score))
+    top_idx <- order(activity_score, decreasing = TRUE)[1:n_select]
+    mat_top <- mat_active[top_idx, top_idx]
+    groupSize <- groupSize_active[top_idx]
+    grpnames_top <- grpnames_active[top_idx]
+    mat_weight_active <- cellchat@net$weight[actgrp_idx, actgrp_idx]
+    mat_weight_top <- mat_weight_active[top_idx, top_idx]
+    topgrp_idx <- actgrp_idx[top_idx]
 
+    png(file=paste0(path_outdir_s, "/aggregated_network_all.png"), width=10,height=10, units="in", res=150)
+    netVisual_circle(
+        mat_top, 
+        vertex.weight = groupSize, 
+        weight.scale = T, 
+        label.edge= F, 
+        title.name = "Number of interactions",
+        vertex.label.cex = 1.5
+    )
+    dev.off()
+    png(file=paste0(path_outdir_s, "/aggregated_network_all_weights.png"), width=10,height=10, units="in", res=150)
+    netVisual_circle(
+        mat_weight_top, 
+        vertex.weight = groupSize, 
+        weight.scale = T, 
+        label.edge= F, 
+        title.name = "Interaction weights/strength",
+        vertex.label.cex = 1.5
+    )
+    dev.off()
+
+    # mat <- cellchat@net$weight
+    mat <- mat_weight_top
+    # grpnames <- rownames(mat)
+    Ngrp <- nrow(mat)
     png(file=paste0(path_outdir_s, "/aggregated_network_groups.png"),width=8,height=3*ceiling(Ngrp/3), units = "in", res=100*ceiling(Ngrp/3))
     par(mfrow = c(ceiling(Ngrp/3),3), xpd=TRUE)
     for (i in 1:Ngrp) {
-    mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
-    mat2[i, ] <- mat[i, ]
-    netVisual_circle(mat2, vertex.weight = groupSize, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+        mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+        mat2[i, ] <- mat[i, ]
+        netVisual_circle(
+            mat2, 
+            vertex.weight = groupSize, 
+            weight.scale = T, 
+            edge.weight.max = max(mat), 
+            title.name = rownames(mat)[i],
+        )
     }
     dev.off()
 
     if(args$pdf){
-        pdf(file=paste0(path_outdir_s, "/aggregated_network_all.pdf"), width=8,height=8)
-        netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions")
+        pdf(file=paste0(path_outdir_s, "/aggregated_network_all.pdf"), width=10,height=10)
+        netVisual_circle(
+            mat_top, 
+            vertex.weight = groupSize, 
+            weight.scale = T, 
+            label.edge= F, 
+            title.name = "Number of interactions",
+            vertex.label.cex = 1.5     
+        )
         dev.off()
-        pdf(file=paste0(path_outdir_s, "/aggregated_network_all_weights.pdf"), width=8,height=8)
-        netVisual_circle(cellchat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength")
+        pdf(file=paste0(path_outdir_s, "/aggregated_network_all_weights.pdf"), width=10,height=10)
+        netVisual_circle(
+            mat_weight_top, 
+            vertex.weight = groupSize, 
+            weight.scale = T, 
+            label.edge= F, 
+            title.name = "Interaction weights/strength",
+            vertex.label.cex = 1.5
+        )
         dev.off()
 
         pdf(file=paste0(path_outdir_s, "/aggregated_network_groups.pdf"),width=8,height=3*ceiling(Ngrp/3))
         par(mfrow = c(ceiling(Ngrp/3),3), xpd=TRUE)
         for (i in 1:Ngrp) {
-        mat2 <- matrix(0, nrow = Ngrp, ncol = ncol(mat), dimnames = dimnames(mat))
-        mat2[i, ] <- mat[i, ]
-        netVisual_circle(mat2, vertex.weight = groupSize, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+            mat2 <- matrix(0, nrow = Ngrp, ncol = ncol(mat), dimnames = dimnames(mat))
+            mat2[i, ] <- mat[i, ]
+            netVisual_circle(
+                mat2, 
+                vertex.weight = groupSize, 
+                weight.scale = T, 
+                edge.weight.max = max(mat), 
+                title.name = rownames(mat)[i],
+            )
         }
         dev.off()
     }
 
     # Visualization of cell-cell communication network for individual signalling pathways
-    for(pathway in cellchat@netP$pathways){
-        png(file=paste0(path_outdir_s, "/pathway_network_circle_", pathway, '.png'), width=8,height=8, units="in", res=100)
+    cellchat_subset <- cellchat
+    cellchat_subset@idents <- cellchat@idents[topgrp_idx]
+    cellchat_subset@net$weight <- cellchat@net$weight[topgrp_idx, topgrp_idx]
+    cellchat_subset@net$count  <- cellchat@net$count[topgrp_idx, topgrp_idx]
+    cellchat_subset <- computeCommunProbPathway(cellchat_subset)
+    cellchat_subset <- netAnalysis_computeCentrality(cellchat_subset)
+    for(pathway in cellchat_subset@netP$pathways){
+        try({
+        png(file=paste0(path_outdir_s, "/pathway_network_circle_", pathway, '.png'), width=10,height=10, units="in", res=150)
         par(mar=c(1, 3, 1, 3), cex=1.5)
-        netVisual_aggregate(cellchat, signaling = pathway, layout = "circle", signaling.name = pathway)
+        netVisual_aggregate(cellchat_subset, signaling = pathway, layout = "circle", signaling.name = pathway)
         dev.off()
-        png(file=paste0(path_outdir_s, "/pathway_network_chord_", pathway, '.png'), width=8,height=8, units="in", res=100)
-        netVisual_chord_cell(cellchat, signaling = pathway, lab.cex=1)
+        }, silent = TRUE)
+        png(file=paste0(path_outdir_s, "/pathway_network_chord_", pathway, '.png'), width=10,height=10, units="in", res=150)
+        netVisual_chord_cell(cellchat_subset, signaling = pathway, lab.cex=1)
         dev.off()
         png(file=paste0(path_outdir_s, "/pathway_network_heatmap_", pathway, '.png'), width=1.5*Ngrp,height=1*Ngrp, units="in", res=100)
-        print(netVisual_heatmap(cellchat, signaling = pathway, color.heatmap = "Reds", font.size = 12, font.size.title = 15))
+        print(netVisual_heatmap(cellchat_subset, signaling = pathway, color.heatmap = "Reds", font.size = 12, font.size.title = 15))
         dev.off()
         if(args$pdf){
-            pdf(file=paste0(path_outdir_s, "/pathway_network_circle_", pathway, '.pdf'), width=8,height=8)
+            try({
+            pdf(file=paste0(path_outdir_s, "/pathway_network_circle_", pathway, '.pdf'), width=10,height=10)
             par(mar=c(1, 3, 1, 3), cex=1.5)
-            netVisual_aggregate(cellchat, signaling = pathway, layout = "circle", signaling.name = pathway)
+            netVisual_aggregate(cellchat_subset, signaling = pathway, layout = "circle", signaling.name = pathway)
             dev.off()
-            pdf(file=paste0(path_outdir_s, "/pathway_network_chord_", pathway, '.pdf'), width=8,height=8)
-            netVisual_chord_cell(cellchat, signaling = pathway, lab.cex=1)
+            }, silent = TRUE)
+            pdf(file=paste0(path_outdir_s, "/pathway_network_chord_", pathway, '.pdf'), width=10,height=10)
+            netVisual_chord_cell(cellchat_subset, signaling = pathway, lab.cex=1)
             dev.off()
             pdf(file=paste0(path_outdir_s, "/pathway_network_heatmap_", pathway, '.pdf'), width=1.5*Ngrp,height=1*Ngrp)
-            print(netVisual_heatmap(cellchat, signaling = pathway, color.heatmap = "Reds", font.size = 12, font.size.title = 15))
+            print(netVisual_heatmap(cellchat_subset, signaling = pathway, color.heatmap = "Reds", font.size = 12, font.size.title = 15))
             dev.off()     
         }
 
         # Compute the contribution of each ligand-receptor pair to the overall signaling pathway
-        pairLR <- extractEnrichedLR(cellchat, signaling = pathway, geneLR.return = FALSE)
+        pairLR <- extractEnrichedLR(cellchat_subset, signaling = pathway, geneLR.return = FALSE)
         png(file=paste0(path_outdir_s, "/pathway_network_contribution_", pathway, '.png'), width=6,height=1.5*nrow(pairLR), units="in", res=100)
-        print(netAnalysis_contribution(cellchat, signaling = pathway, font.size = 12, font.size.title = 15))
+        print(netAnalysis_contribution(cellchat_subset, signaling = pathway, font.size = 12, font.size.title = 15))
         dev.off()
         if(args$pdf){
             pdf(file=paste0(path_outdir_s, "/pathway_network_contribution_", pathway, '.pdf'), width=6,height=1.5*nrow(pairLR))
-            print(netAnalysis_contribution(cellchat, signaling = pathway, font.size = 12, font.size.title = 15))
+            print(netAnalysis_contribution(cellchat_subset, signaling = pathway, font.size = 12, font.size.title = 15))
             dev.off()
         }
 
         # visualize cell-cell communication mediated by a single ligand-receptor pair
         for(i in 1:nrow(pairLR)){
             LR <- pairLR[i,]
-            png(file=paste0(path_outdir_s, "/pathway_network_LR_circle_", pathway, '.png'), width=5,height=5, units="in", res=200)
-            netVisual_individual(cellchat, signaling = pathway, pairLR.use = LR, layout = "circle")
+            png(file=paste0(path_outdir_s, "/pathway_network_LR_circle_", pathway, '.png'), width=8,height=8, units="in", res=200)
+            netVisual_individual(cellchat_subset, signaling = pathway, pairLR.use = LR, layout = "circle")
             dev.off()
-            png(file=paste0(path_outdir_s, "/pathway_network_LR_chord_", pathway, '.png'), width=6,height=6, units="in", res=200)
-            netVisual_individual(cellchat, signaling = pathway, pairLR.use = LR, layout = "chord")
+            png(file=paste0(path_outdir_s, "/pathway_network_LR_chord_", pathway, '.png'), width=8,height=8, units="in", res=200)
+            netVisual_individual(cellchat_subset, signaling = pathway, pairLR.use = LR, layout = "chord")
             dev.off()
             if(args$pdf){
-                pdf(file=paste0(path_outdir_s, "/pathway_network_LR_circle_", pathway, '.pdf'), width=5,height=5)
-                netVisual_individual(cellchat, signaling = pathway, pairLR.use = LR, layout = "circle")
+                pdf(file=paste0(path_outdir_s, "/pathway_network_LR_circle_", pathway, '.pdf'), width=8,height=8)
+                netVisual_individual(cellchat_subset, signaling = pathway, pairLR.use = LR, layout = "circle")
                 dev.off()
-                pdf(file=paste0(path_outdir_s, "/pathway_network_LR_chord_", pathway, '.pdf'), width=6,height=6)
-                netVisual_individual(cellchat, signaling = pathway, pairLR.use = LR, layout = "chord")
+                pdf(file=paste0(path_outdir_s, "/pathway_network_LR_chord_", pathway, '.pdf'), width=8,height=8)
+                netVisual_individual(cellchat_subset, signaling = pathway, pairLR.use = LR, layout = "chord")
                 dev.off()
             }
         }
 
         # Visualize cell-cell communication mediated by multiple ligand-receptors or signaling pathways
-        for(i in actgrp_idx){
-            grpname = gsub("[/ ]", "_", grpnames[i])
+        for(k in seq_along(topgrp_idx)){
+            i = topgrp_idx[k]
+            grpname = gsub("[/ ]", "_", grpnames_top[k])
             try({
-                gg <- netVisual_bubble(cellchat, sources.use = i, remove.isolate = FALSE)
-                ggsave(filename=paste0(path_outdir_s, "/cellcell_LR_bubble_", grpname, '.png'), plot=gg, units = 'in', dpi = 200)
+                gg <- netVisual_bubble(cellchat_subset, sources.use = i, remove.isolate = FALSE)
+                nx <- length(levels(cellchat_subset@idents))
+                ny <- nrow(subsetCommunication(cellchat_subset, sources.use = i))
+                ggsave(
+                    filename=paste0(path_outdir_s, "/cellcell_LR_bubble_", grpname, '.png'), 
+                    plot=gg, 
+                    width=max(6, 0.3*nx),
+                    height=max(6, 0.05*ny), 
+                    units = 'in', 
+                    dpi = 200, 
+                    limitsize = FALSE)
                 if(args$pdf){
-                    ggsave(filename=paste0(path_outdir_s, "/cellcell_LR_bubble_", grpname, '.pdf'), plot=gg)
+                    ggsave(
+                        filename=paste0(path_outdir_s, "/cellcell_LR_bubble_", grpname, '.pdf'), 
+                        width=max(6, 0.3*nx),
+                        height=max(6, 0.05*ny), 
+                        limitsize = FALSE)
                 }
             },silent = TRUE)
         }
-        for(i in actgrp_idx){
-            grpname = gsub("[/ ]", "_", grpnames[i])
-            png(file=paste0(path_outdir_s, "/cellcell_LR_chord_", grpname, '.png'), width=10,height=8, units="in", res=100)
-            netVisual_chord_gene(cellchat, sources.use = i, lab.cex = 0.5,legend.pos.y = 30)
-            dev.off()
+        for(k in seq_along(topgrp_idx)){
+            i = topgrp_idx[k]
+            grpname = gsub("[/ ]", "_", grpnames_top[k])
+            pairLR <- subsetCommunication(cellchat_subset, sources.use = i)
+            pairLR <- pairLR[order(pairLR$prob, decreasing = TRUE), ]
+            pairLR <- head(pairLR, 100)
+            try({
+            png(file=paste0(path_outdir_s, "/cellcell_LR_chord_", grpname, '.png'), width=12,height=10, units="in", res=150)
+            netVisual_chord_gene(cellchat_subset, sources.use = i, pairLR.use = pairLR, lab.cex = 1.2, legend.pos.y = 30)
+            dev.off()            
             if(args$pdf){
-                pdf(file=paste0(path_outdir_s, "/cellcell_LR_chord_", grpname, '.pdf'), width=10,height=8)
-                netVisual_chord_gene(cellchat, sources.use = i, lab.cex = 0.5,legend.pos.y = 30)
+                pdf(file=paste0(path_outdir_s, "/cellcell_LR_chord_", grpname, '.pdf'), width=12,height=10)
+                netVisual_chord_gene(cellchat_subset, sources.use = i, pairLR.use = pairLR, lab.cex = 1.2,legend.pos.y = 30)
                 dev.off()
             }
+            },silent = TRUE)
         }
 
         # Plot the signaling gene expression distribution using violin
-        png(file=paste0(path_outdir_s, "/pathway_genes_violin_", pathway, '.png'), width=1*Ngrp,height=8, units="in", res=100)
+        png(file=paste0(path_outdir_s, "/pathway_genes_violin_", pathway, '.png'), width=1*Ngrp,height=10, units="in", res=150)
         print(plotGeneExpression(cellchat, signaling = pathway, enriched.only = TRUE))
         dev.off()
         if(args$pdf){
-            pdf(file=paste0(path_outdir_s, "/pathway_genes_violin_", pathway, '.pdf'), width=1*Ngrp,height=8)
-            print(plotGeneExpression(cellchat, signaling = pathway, enriched.only = TRUE))
+            pdf(file=paste0(path_outdir_s, "/pathway_genes_violin_", pathway, '.pdf'), width=1*Ngrp,height=10)
+            print(plotGeneExpression(cellchat_subset, signaling = pathway, enriched.only = TRUE))
             dev.off()
         }
 
         # visualize the network centrality scores
         png(file=paste0(path_outdir_s, "/pathway_network_centrality_", pathway, '.png'), width=1*Ngrp,height=4, units="in", res=100)
-        netAnalysis_signalingRole_network(cellchat, signaling = pathway, width=1.5*Ngrp,height=4, font.size = 10)
+        netAnalysis_signalingRole_network(cellchat_subset, signaling = pathway, width=1.5*Ngrp,height=4, font.size = 10)
         dev.off()
         if(args$pdf){
             pdf(file=paste0(path_outdir_s, "/pathway_network_centrality_", pathway, '.pdf'), width=1*Ngrp,height=4)
-            netAnalysis_signalingRole_network(cellchat, signaling = pathway, width=1.5*Ngrp,height=4, font.size = 10)
+            netAnalysis_signalingRole_network(cellchat_subset, signaling = pathway, width=1.5*Ngrp,height=4, font.size = 10)
             dev.off()
         }
     }
 
     # Identify signals contributing the most to outgoing or incoming signaling of certain cell groups
-    ht1 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "outgoing")
-    ht2 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "incoming")
-    png(file=paste0(path_outdir_s, "/heatmap_signaling_patterns.png"), width=(1*Ngrp+3),height=1*Ngrp, units="in", res=100)
+    heat_w <- unit(0.3*Ngrp, "in")
+    heat_h <- unit(0.8*Ngrp, "in")
+    ht1 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "outgoing", width = heat_w, height = heat_h)
+    ht2 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "incoming", width = heat_w, height = heat_h)
+    png(file=paste0(path_outdir_s, "/heatmap_signaling_patterns.png"), units="in", width=0.5*Ngrp+4,height=1*Ngrp, res=150)
     print(ht1 + ht2)
     dev.off()
     if(args$pdf){
-        pdf(file=paste0(path_outdir_s, "/heatmap_signaling_patterns.pdf"), width=(1*Ngrp+3),height=1*Ngrp)
+        pdf(file=paste0(path_outdir_s, "/heatmap_signaling_patterns.pdf"), width=0.5*Ngrp+4,height=1*Ngrp)
         print(ht1 + ht2)
         dev.off()
     }
@@ -278,6 +367,7 @@ params[["--metadata"]] <- as.character(args$metadata)
 params[["--gids"]] <- as.character(args$gids)
 params[["--cids"]] <- as.character(args$cids)
 params[["--group"]] <- as.character(args$group)
+params[["--n_actgrps"]] <- as.character(args$n_actgrps)
 if(args$normalize){params[["--normalize"]] <- as.character(args$normalize)}
 params[["--db"]] <- as.character(args$db)
 if (!is.null(args$dbc)) {params[["--dbc"]] <- as.character(args$dbc)}

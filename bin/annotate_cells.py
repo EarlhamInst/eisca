@@ -201,21 +201,29 @@ def main(argv=None):
     n_cluster = len(adata.obs[label_type].unique())+1
     ncol = min((n_cluster//20 + min(n_cluster%20, 1)), 3)
     with plt.rc_context():
-        prop = pd.crosstab(adata.obs[label_type], adata.obs[batch], normalize='columns').T.plot(kind='bar', stacked=True, color=adata.uns[f"{label_type}_colors"])
+        ax = pd.crosstab(
+            adata.obs[label_type], 
+            adata.obs[batch], 
+            normalize='columns').T.plot(kind='bar', stacked=True, color=adata.uns[f"{label_type}_colors"])        
+        # prop = pd.crosstab(adata.obs[label_type], adata.obs[batch], normalize='columns').T.plot(kind='bar', stacked=True, color=adata.uns[f"{label_type}_colors"])
         # prop.legend(bbox_to_anchor=(1.4+(args.fontsize-10)/50+ncol*0.17, 1.02), loc='upper right', ncol=ncol)
 
-        leg = plt.legend(
-            bbox_to_anchor=(1.4 + (args.fontsize - 10) / 50 + ncol * 0.17, 1.02),
-            loc="upper right",
+        # leg = plt.legend(
+        #     bbox_to_anchor=(1.4 + (args.fontsize - 10) / 50 + ncol * 0.17, 1.02),
+        #     loc="upper right",
+        #     ncol=ncol,
+        # )
+        leg = ax.legend(
+            loc="upper left",
+            bbox_to_anchor=(1.05, 1.0),   # just outside the axes
+            borderaxespad=0,
             ncol=ncol,
         )
-        plt.gcf().canvas.draw()
         bbox = leg.get_window_extent()
         width = bbox.width
         if width > 500:
             leg.remove()  # remove old one
             plt.legend(bbox_to_anchor=(0.5, -0.4), loc="upper center", ncol=min(ncol+1, 6))
-        plt.gcf().tight_layout()
 
         plt.savefig(Path(path_annotation, f"prop_{label_type}.png"), bbox_inches="tight")    
         if args.pdf:

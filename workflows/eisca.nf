@@ -270,13 +270,13 @@ workflow EISCA {
 
     //===================================== Tertiary anaysis stage =====================================
 
-    if (!params.run_analyses.intersect([
+    if (params.run_analyses.any{ it in [
         'tertiary', 
         'annotation', 
         'annotation_scvi', 
         'dea', 
         'dea_scvi', 
-        'cellchat']).isEmpty()){
+        'cellchat'] }){
     
         // Get input h5ad file
         ch_h5ad = Channel.empty()
@@ -293,7 +293,7 @@ workflow EISCA {
             path2 = "${params.outdir}/qc_cell_filter/adata_filtered_normalized.h5ad"
             path3 = "${params.outdir}/annotation/adata_annotation.h5ad"
             path4 = "${params.outdir}/annotation_scvi/adata_annotation.h5ad"
-            if(params.run_analyses.intersect(['dea', 'dea_scvi', 'cellchat'])){
+            if(params.run_analyses.any{ it in ['dea', 'dea_scvi', 'cellchat'] }){
                 if(new File(path3).exists()){
                     ch_h5ad = Channel.fromPath(path3)
                 }else if(new File(path4).exists()){
