@@ -304,7 +304,8 @@ Users can set the options for cell-cell communication analysis in the parameter 
 | Options   | Description |
 | ----------- | ----------- |
 | --group  \<string> | Specify the column from metadata for grouping the cells. (default=majority_voting)|
-| --n_actgrps  \<int> | Specify the number of top active groups based on number of ligand–receptor interactions. (default=12)|
+| --n_actgrps  \<int> | Specify the number of top active groups based on counts of the ligand–receptor interactions. (default=12)|
+| --n_pairLR  \<int> | Specify the number of top ligand–receptor (LR) pairs based on the probabilities of LR pairs. (default=100)|
 | --normalize | Indicates whether to normalize the counts.|
 | --db  \<[human, mouse]> | Specify the species of CellChatDB. (default=human) |
 | --dbc  \<string> | Specify the categories of CellChatDB, e.g. Secreted Signaling. |

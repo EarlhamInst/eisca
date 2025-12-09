@@ -19,6 +19,7 @@ parser$add_argument("--gids", help="Input gene ID list csv file")
 parser$add_argument("--cids", help="Input cell ID list csv file")
 parser$add_argument("--group", default="majority_voting", help="Specify the column for grouping the cells")
 parser$add_argument("--n_actgrps", type="integer", default=12, help="Number of top active groups")
+parser$add_argument("--n_pairLR", type="integer", default=100, help="Number of top LR pairs")
 parser$add_argument("--normalize", action="store_true", help="Indicates whether to normalize the counts")
 parser$add_argument("--db", default="human",  choices=c('human', 'mouse'), help="Specify the species of CellChatDB.")
 parser$add_argument("--dbc", help="The categories of CellChatDB, e.g. Secreted Signaling")
@@ -302,7 +303,7 @@ for(sid in unique(meta[[batch]])){
             grpname = gsub("[/ ]", "_", grpnames_top[k])
             pairLR <- subsetCommunication(cellchat_subset, sources.use = i)
             pairLR <- pairLR[order(pairLR$prob, decreasing = TRUE), ]
-            pairLR <- head(pairLR, 100)
+            pairLR <- head(pairLR, args$n_pairLR)
             try({
             png(file=paste0(path_outdir_s, "/cellcell_LR_chord_", grpname, '.png'), width=12,height=10, units="in", res=150)
             netVisual_chord_gene(cellchat_subset, sources.use = i, pairLR.use = pairLR, lab.cex = 1.2, legend.pos.y = 30)
