@@ -163,11 +163,11 @@ def main(argv=None):
             html.p("""This section presents the QC plots of the raw count matrix generated during 
                    the quantification step. These plots provide insight into the quality of the 
                    experiments and guide the filtering of low-quality cells.""")
-            html.p("""The following knee plot shows the relationship between total 
+            html.p("""The following scatter plot shows the relationship between total 
                    read counts and the number of genes, with the percentage of counts in 
                    mitochondrial genes indicated by color.""")
             plots_from_image_files(path_quant_qc_raw, meta='sample', widths=['800'], suffix=['scatter*.png'])
-            html.p("""The following scatter plot shows the relationship between cell barcode rank and total 
+            html.p("""The following knee plot shows the relationship between cell barcode rank and total 
                    number of UMIs per barcode. The inflection (knee) point where the UMI frequency rapidly 
                    drops can be good cutoff to remove empty droplets.""")
             plots_from_image_files(path_quant_qc_raw, meta='sample', widths=['500'], suffix=['knee_plot.png'])
