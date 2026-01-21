@@ -1,12 +1,5 @@
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/nf-core-eisca_logo_dark.png">
-    <img alt="nf-core/eisca" src="docs/images/nf-core-eisca_logo_light.png">
-  </picture>
-</h1>
 
-[![GitHub Actions CI Status](https://github.com/nf-core/eisca/actions/workflows/ci.yml/badge.svg)](https://github.com/nf-core/eisca/actions/workflows/ci.yml)
-[![GitHub Actions Linting Status](https://github.com/nf-core/eisca/actions/workflows/linting.yml/badge.svg)](https://github.com/nf-core/eisca/actions/workflows/linting.yml)[![AWS CI](https://img.shields.io/badge/CI%20tests-full%20size-FF9900?labelColor=000000&logo=Amazon%20AWS)](https://nf-co.re/eisca/results)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.XXXXXXX-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.XXXXXXX)
+[![AWS CI](https://img.shields.io/badge/CI%20tests-full%20size-FF9900?labelColor=000000&logo=Amazon%20AWS)](https://nf-co.re/eisca/results)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.XXXXXXX-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.XXXXXXX)
 [![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
 
 [![Nextflow](https://img.shields.io/badge/nextflow%20DSL2-%E2%89%A523.04.0-23aa62.svg)](https://www.nextflow.io/)
@@ -101,7 +94,7 @@ Now, you can run the pipeline using:
 <!-- TODO nf-core: update the following command to include all required parameters for a minimal example -->
 
 ```bash
-nextflow run TGAC/eisca \
+nextflow run EarlhamInst/eisca \
    -profile <docker/singularity/.../institute> \
    --input samplesheet.csv \
    --genome_fasta GRCm38.p6.genome.chr19.fa \
