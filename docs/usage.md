@@ -164,6 +164,7 @@ Users can set the options for cell filtering in the parameter `--args_qccellfilt
 | --max_genes  \<int> | Filter cells by maximum number of genes. (default=0 means not applied) |
 | --max_counts  \<int> | Filter cells by maximum number of counts. (default=0 means not applied) |
 | --min_cells  \<int> | Filter genes by number of cells expressed. (default=3)  |
+| --min_gcounts  \<int> | Filter genes by the minimum counts expressed. (default=0) |
 | --pct_mt  \<int> | Filter genes by the maximum percentage of mitochondrial counts. (default=20) |
 | --quantile_upper  \<float> | Filter genes by upper limit of quantile on number of genes. (default=1) |
 | --quantile_lower  \<float> | Filter genes by lower limit of quantile on number of genes. (default=0) |

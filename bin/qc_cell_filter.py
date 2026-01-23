@@ -56,28 +56,34 @@ def parse_args(argv=None):
         default=100,
     )
     parser.add_argument(
-        "--min_counts",
-        type=int,
-        help="Filter cells by minimum number of counts.",
-        default=1,
-    )
-    parser.add_argument(
         "--max_genes",
         type=int,
         help="Filter cells by maximum number of genes.",
         default=0,
     )
     parser.add_argument(
+        "--min_counts",
+        type=int,
+        help="Filter cells by minimum number of counts.",
+        default=1,
+    )
+    parser.add_argument(
         "--max_counts",
         type=int,
         help="Filter cells by maximum number of counts.",
         default=0,
-    )         
+    )       
     parser.add_argument(
         "--min_cells",
         type=int,
         help="Filter genes by number of cells expressed.",
         default=3,
+    )
+    parser.add_argument(
+        "--min_gcounts",
+        type=int,
+        help="Filter genes by minimum counts expressed.",
+        default=0,
     )
     parser.add_argument(
         "--pct_mt",
@@ -269,23 +275,26 @@ def main(argv=None):
         sc.pp.filter_cells(adata_s, min_genes=args.min_genes)
         sc.pp.filter_cells(adata_s, min_counts=args.min_counts)
         sc.pp.filter_genes(adata_s, min_cells=args.min_cells)
-
+        if args.min_gcounts > 0:
+            sc.pp.filter_genes(adata_s, min_counts=args.min_gcounts)
         if args.max_counts > 0:
             sc.pp.filter_cells(adata_s, max_counts=args.max_counts)
-        elif args.iqr_coef > 0:
+        if args.max_genes > 0:
+            sc.pp.filter_cells(adata_s, max_genes=args.max_genes)
+
+        sc.pp.calculate_qc_metrics(adata_s, inplace=True)
+
+        if args.iqr_coef > 0:
             q1 = np.percentile(adata_s.obs.total_counts.values, 25)
             q3 = np.percentile(adata_s.obs.total_counts.values, 75)
             upper_fence = q3 + args.iqr_coef*(q3 - q1)
             sc.pp.filter_cells(adata_s, max_counts=upper_fence)
-        
-        if args.max_genes > 0:
-            sc.pp.filter_cells(adata_s, max_genes=args.max_genes)
-        # elif args.iqr_coef > 0:        
+            sc.pp.calculate_qc_metrics(adata_s, inplace=True)
+        # if args.iqr_coef > 0:        
         #     q1 = np.percentile(adata_s.obs.n_genes_by_counts.values, 25)
         #     q3 = np.percentile(adata_s.obs.n_genes_by_counts.values, 75)
         #     upper_fence = q3 + args.iqr_coef*(q3 - q1)
         #     sc.pp.filter_cells(adata_s, max_genes=upper_fence)
-
 
         if args.quantile_upper < 1:
             upper_lim = np.quantile(adata_s.obs.n_genes_by_counts.values, args.quantile_upper)
@@ -468,7 +477,8 @@ def main(argv=None):
         params.update({"--min_genes": args.min_genes})        
         params.update({"--min_counts": args.min_counts})        
         if args.max_genes > 0: params.update({"--max_genes": args.max_genes})
-        if args.max_counts > 0: params.update({"--max_counts": args.max_counts})        
+        if args.max_counts > 0: params.update({"--max_counts": args.max_counts})
+        if args.min_gcounts > 0: params.update({"--min_gcounts": args.min_gcounts})        
         params.update({"--min_cells": args.min_cells})        
         params.update({"--pct_mt": args.pct_mt})        
         if args.quantile_upper < 1: params.update({"--quantile_upper": args.quantile_upper})        
