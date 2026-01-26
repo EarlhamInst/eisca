@@ -116,6 +116,20 @@ def floatlist(floatstr):
     return floats
 
 
+def intlist(intstr):
+    """A argparse type
+    PARAMS:
+        intstr: a string of integral numbers separated with ','
+    RETURN:
+        A list of integral numbers
+    """
+    try:
+        numbers = [int(x) for x in intstr.split(',')]
+    except ValueError:
+        raise argparse.ArgumentTypeError('Invalid integral number!')
+    return numbers
+
+
 def stringlist(strings):
     """A argparse type
     PARAMS:

@@ -51,39 +51,39 @@ def parse_args(argv=None):
     )    
     parser.add_argument(
         "--min_genes",
-        type=int,
+        type=util.intlist,
         help="Filter cells by minimum number of genes.",
-        default=100,
+        default=[100],
     )
     parser.add_argument(
         "--max_genes",
-        type=int,
+        type=util.intlist,
         help="Filter cells by maximum number of genes.",
-        default=0,
+        default=[0],
     )
     parser.add_argument(
         "--min_counts",
-        type=int,
+        type=util.intlist,
         help="Filter cells by minimum number of counts.",
-        default=1,
+        default=[1],
     )
     parser.add_argument(
         "--max_counts",
-        type=int,
+        type=util.intlist,
         help="Filter cells by maximum number of counts.",
-        default=0,
+        default=[0],
     )       
     parser.add_argument(
         "--min_cells",
-        type=int,
+        type=util.intlist,
         help="Filter genes by number of cells expressed.",
-        default=3,
+        default=[3],
     )
     parser.add_argument(
         "--min_gcounts",
-        type=int,
+        type=util.intlist,
         help="Filter genes by minimum counts expressed.",
-        default=0,
+        default=[0],
     )
     parser.add_argument(
         "--pct_mt",
@@ -180,7 +180,7 @@ def main(argv=None):
             logger.error(f"In the 'group' column, all samples must be assigned to a group.")
             sys.exit(1)
 
-    adata_raw = anndata.read_h5ad(args.h5ad)
+    adata_raw = sc.read_h5ad(args.h5ad)
     # adata_raw.obs['sample'] = [x.removesuffix('_raw') for x in adata_raw.obs['sample']]
 
     summary = []
@@ -191,7 +191,8 @@ def main(argv=None):
     for sid in samplesheet[sample].unique():
         adatas.update({sid: adata_raw[adata_raw.obs[sample]==sid]})     
 
-    for sid, adata_s in adatas.items():
+    # for sid, adata_s in adatas.items():
+    for s, (sid, adata_s) in enumerate(adatas.items()):
 
         # QC on raw counts
         # mitochondrial genes
@@ -272,15 +273,22 @@ def main(argv=None):
 
 
         # Cell filtering
-        sc.pp.filter_cells(adata_s, min_genes=args.min_genes)
-        sc.pp.filter_cells(adata_s, min_counts=args.min_counts)
-        sc.pp.filter_genes(adata_s, min_cells=args.min_cells)
-        if args.min_gcounts > 0:
-            sc.pp.filter_genes(adata_s, min_counts=args.min_gcounts)
-        if args.max_counts > 0:
-            sc.pp.filter_cells(adata_s, max_counts=args.max_counts)
-        if args.max_genes > 0:
-            sc.pp.filter_cells(adata_s, max_genes=args.max_genes)
+        min_genes_s = args.min_genes[s] if s < len(args.min_genes) else args.min_genes[-1]
+        min_counts_s = args.min_counts[s] if s < len(args.min_counts) else args.min_counts[-1]
+        min_cells_s = args.min_cells[s] if s < len(args.min_cells) else args.min_cells[-1]
+        min_gcounts_s = args.min_gcounts[s] if s < len(args.min_gcounts) else args.min_gcounts[-1]
+        max_counts_s = args.max_counts[s] if s < len(args.max_counts) else args.max_counts[-1]
+        max_genes_s = args.max_genes[s] if s < len(args.max_genes) else args.max_genes[-1]
+
+        sc.pp.filter_cells(adata_s, min_genes=min_genes_s)
+        sc.pp.filter_cells(adata_s, min_counts=min_counts_s)
+        sc.pp.filter_genes(adata_s, min_cells=min_cells_s)
+        if min_gcounts_s > 0:
+            sc.pp.filter_genes(adata_s, min_counts=min_gcounts_s)
+        if max_counts_s > 0:
+            sc.pp.filter_cells(adata_s, max_counts=max_counts_s)
+        if max_genes_s > 0:
+            sc.pp.filter_cells(adata_s, max_genes=max_genes_s)
 
         sc.pp.calculate_qc_metrics(adata_s, inplace=True)
 
@@ -476,9 +484,9 @@ def main(argv=None):
         params.update({"--samplesheet": str(args.samplesheet)})        
         params.update({"--min_genes": args.min_genes})        
         params.update({"--min_counts": args.min_counts})        
-        if args.max_genes > 0: params.update({"--max_genes": args.max_genes})
-        if args.max_counts > 0: params.update({"--max_counts": args.max_counts})
-        if args.min_gcounts > 0: params.update({"--min_gcounts": args.min_gcounts})        
+        if sum(args.max_genes) > 0: params.update({"--max_genes": args.max_genes})
+        if sum(args.max_counts) > 0: params.update({"--max_counts": args.max_counts})
+        if sum(args.min_gcounts) > 0: params.update({"--min_gcounts": args.min_gcounts})       
         params.update({"--min_cells": args.min_cells})        
         params.update({"--pct_mt": args.pct_mt})        
         if args.quantile_upper < 1: params.update({"--quantile_upper": args.quantile_upper})        

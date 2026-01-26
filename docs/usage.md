@@ -159,12 +159,12 @@ The corresponding parameters for STAR are as follows:
 Users can set the options for cell filtering in the parameter `--args_qccellfilter`, which are as follows. 
 | Options   | Description |
 | ----------- | ----------- |
-| --min_genes  \<int> | Filter cells by minimum number of genes. (default=100)|
-| --min_counts  \<int> | Filter cells by minimum number of counts. (default=1)|
-| --max_genes  \<int> | Filter cells by maximum number of genes. (default=0 means not applied) |
-| --max_counts  \<int> | Filter cells by maximum number of counts. (default=0 means not applied) |
-| --min_cells  \<int> | Filter genes by number of cells expressed. (default=3)  |
-| --min_gcounts  \<int> | Filter genes by the minimum counts expressed. (default=0) |
+| --min_genes  \<int list> | Filter cells by minimum number of genes. You can set a value for all samples or a list of values deliminated by ',' for each sample. (default=100)|
+| --min_counts  \<int list> | Filter cells by minimum number of counts. You can set a value for all samples or a list of values deliminated by ',' for each sample. (default=1)|
+| --max_genes  \<int list> | Filter cells by maximum number of genes. You can set a value for all samples or a list of values deliminated by ',' for each sample. (default=0 means not applied) |
+| --max_counts  \<int list> | Filter cells by maximum number of counts. You can set a value for all samples or a list of values deliminated by ',' for each sample. (default=0 means not applied) |
+| --min_cells  \<int list> | Filter genes by number of cells expressed. You can set a value for all samples or a list of values deliminated by ',' for each sample. (default=3)  |
+| --min_gcounts  \<int list> | Filter genes by the minimum counts expressed. You can set a value for all samples or a list of values deliminated by ',' for each sample. (default=0) |
 | --pct_mt  \<int> | Filter genes by the maximum percentage of mitochondrial counts. (default=20) |
 | --quantile_upper  \<float> | Filter genes by upper limit of quantile on number of genes. (default=1) |
 | --quantile_lower  \<float> | Filter genes by lower limit of quantile on number of genes. (default=0) |
@@ -186,8 +186,11 @@ Users can set the options for clustering analysis in the parameter `args_cluster
 | --keep_doublets | An switch of whether to filter out the cells called as doublets. (false by default)|
 | --regress | An switch of whether to regress out the variations from the total counts and the percentage of mitochondrial genes expressed. (false by default)|
 | --scale | An switch of whether to scale the expression to have zero mean and unit variance. (false by default)|
+| --n_comps  \<int> | Specify the number of components for PCA dimensionality reduction. (default=50) |
+| --n_neighbors  \<int> | Specify the number of neighbors for nearest neighbor graph constuction. (default=15) |
 | --resolutions \<string> | Resolution is used to control number of clusters. (default="0.02,0.05,0.1,0.5")|
 | --integrate \<[bbknn, harmony, scanorama, scvi]> | Choose a method for data integration across samples. Currently four integration approaches can be choosen: 'bbknn' - a fast and intuitive batch effect removal method focus on local structure; 'harmony' - a popular global correction approach that iteratively adjusts the embedding of cells in lower-dimensional space, which is effective at correcting large batch effects, especially in datasets with complex batch structures. 'scanorama' - a method focuses on global merging with strong capability in retaining subtle variation across conditions. 'scvi' - uses a deep generative model (conditional variational autoencoder) to learn a latent representation of the data that accounts for batch variation while preserving biological variation, and good for highly heterogeneous datasets. scvi package requries CPUs support AVX instructions. (default=None)|
+| --min_cluster_size  \<int> | Specify the minimal cluster size for filtering out small and unstable clusters. (default=0) |
 | --meta  \<[auto, sample, group]> | Choose a metadata column as the batch classes on which the clustering UMAPs will be displayed. By default, it is set to 'auto', which means it will use the 'group' column as the batch classes if 'group' is defined in the samplesheet file; otherwise, it will use the 'sample' column. |
 | --covar_cat  \<[string]> | Specify the list of categorical covariates for scVI models. (default=[]) |
 | --covar_con  \<[string]> | Specify the list of continuous covariates for scVI models. (default=[]) |
