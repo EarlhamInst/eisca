@@ -322,13 +322,13 @@ def main(argv=None):
         )
 
     # Filter Out Small Clusters
-    if args.min_cells_threshold > 0:
+    if args.min_cluster_size > 0:
         res_columns = [f"leiden_res_{res:4.2f}" for res in args.resolutions]
         keep_mask = np.array([True] * adata.n_obs)
         for col in res_columns:
             if col in adata.obs.columns:
                 counts = adata.obs[col].value_counts()
-                small_clusters = counts[counts < args.min_cells_threshold].index.tolist()
+                small_clusters = counts[counts < args.min_cluster_size].index.tolist()
                 is_in_small_cluster = adata.obs[col].isin(small_clusters)
                 keep_mask = keep_mask & (~is_in_small_cluster)
         adata = adata[keep_mask].copy()
