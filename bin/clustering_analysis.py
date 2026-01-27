@@ -111,6 +111,12 @@ def parse_args(argv=None):
         default=0,
     )
     parser.add_argument(
+        "--min_cluster_pct",
+        type=float,
+        help="Set minimal cluster percentage number for filtering out small clusters.",
+        default=0,
+    )
+    parser.add_argument(
         "--meta",
         default='auto',
         choices=['auto', 'sample', 'group', 'plate'],
@@ -333,6 +339,16 @@ def main(argv=None):
                 keep_mask = keep_mask & (~is_in_small_cluster)
         adata = adata[keep_mask].copy()
 
+    if args.min_cluster_pct > 0:
+        res_columns = [f"leiden_res_{res:4.2f}" for res in args.resolutions]
+        keep_mask = np.array([True] * adata.n_obs)
+        for col in res_columns:
+            if col in adata.obs.columns:
+                pcts = adata.obs[col].value_counts(normalize=True) * 100
+                small_clusters = pcts[pcts < args.min_cluster_pct].index.tolist()
+                is_in_small_cluster = adata.obs[col].isin(small_clusters)
+                keep_mask = keep_mask & (~is_in_small_cluster)
+        adata = adata[keep_mask].copy()
 
     # save the AnnData into a h5ad file 
     adata.write_h5ad(Path(path_clustering, 'adata_clustering.h5ad'))
@@ -367,13 +383,15 @@ def main(argv=None):
     
     # stacked proportion bar plot showing all samples for each resolution      
     for res in args.resolutions:
+        sc.pl.umap(adata, color=f'leiden_res_{res:4.2f}', show=False)
         path_res = Path(path_clustering, f"resolution_{res:4.2f}")
         util.check_and_create_folder(path_res)
         n_cluster = len(adata.obs[f'leiden_res_{res:4.2f}'].unique())+1
         ncol = min((n_cluster//20 + min(n_cluster%20, 1)), 3)
+        colors = list(adata.uns[f'leiden_res_{res:4.2f}_colors'])
         with plt.rc_context():
-            prop = pd.crosstab(adata.obs[f'leiden_res_{res:4.2f}'], adata.obs[batch], normalize='columns').T.plot(kind='bar', stacked=True)
-            prop.legend(bbox_to_anchor=(1+(args.fontsize-10)/50+ncol*0.17, 1.02), loc='upper right', ncol=ncol)
+            prop = pd.crosstab(adata.obs[f'leiden_res_{res:4.2f}'],adata.obs[batch], normalize='columns').T.plot(kind='bar', stacked=True, color=colors)
+            prop.legend(bbox_to_anchor=(1.05+(args.fontsize-10)/50+ncol*0.17, 1.02), loc='upper right', ncol=ncol)
             plt.savefig(Path(path_res, f"prop_leiden_res_{res:4.2f}.png"), bbox_inches="tight")
             if args.pdf:
                 plt.savefig(Path(path_res, f"prop_leiden_res_{res:4.2f}.pdf"), bbox_inches="tight")
@@ -388,6 +406,7 @@ def main(argv=None):
         params.update({"--resolutions": args.resolutions})        
         if args.integrate: params.update({"--integrate": args.integrate})        
         if args.min_cluster_size > 0: params.update({"--min_cluster_size": args.min_cluster_size})    
+        if args.min_cluster_pct > 0: params.update({"--min_cluster_pct": args.min_cluster_pct})    
         params.update({"--meta": args.meta})        
         if args.normalize: params.update({"--normalize": args.normalize})
         if args.regress: params.update({"--regress": args.regress})
