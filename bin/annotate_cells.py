@@ -108,6 +108,7 @@ def main(argv=None):
 
     plt.rcParams.update({
         "font.size": args.fontsize,
+        # "figure.dpi": 100,
         # "axes.titlesize": 'medium',
         # "axes.labelsize": 'small',
         # "xtick.labelsize": 'small',
@@ -160,7 +161,9 @@ def main(argv=None):
         adata_s = adata[adata.obs[batch]==sid]   
         path_annotation_s = Path(path_annotation, f"{batch}_{sid}")
         util.check_and_create_folder(path_annotation_s)
-        with plt.rc_context():
+        n_cluster = len(adata_s.obs[label_type].unique())+1
+        ncol = min((n_cluster//20 + min(n_cluster%20, 1)), 3)
+        with plt.rc_context({"figure.dpi": 100}):
             # sc.pl.umap(
             #     adata_s,
             #     color=label_type,
@@ -178,7 +181,6 @@ def main(argv=None):
                 if width_px > 500:
                     leg.remove()
                     ax.legend(bbox_to_anchor=(0.5, -0.2), loc="upper center", ncol=min(ncol+1, 6))
-                fig.tight_layout()
 
             plt.savefig(Path(path_annotation_s, f"umap_cell_type.png"), bbox_inches="tight")    
             if args.pdf:
@@ -197,9 +199,9 @@ def main(argv=None):
 
 
     # stacked proportion bar plot to compare between batches
-    sc.pl.umap(adata, color=label_type, show=False) # get adata.uns['_colors']     
+    sc.pl.umap(adata, color=label_type, show=False) # get adata.uns['_colors']
     n_cluster = len(adata.obs[label_type].unique())+1
-    ncol = min((n_cluster//20 + min(n_cluster%20, 1)), 3)
+    ncol = min((n_cluster//20 + min(n_cluster%20, 1)), 3)  
     with plt.rc_context():
         ax = pd.crosstab(
             adata.obs[label_type], 

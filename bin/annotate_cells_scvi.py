@@ -153,6 +153,7 @@ def main(argv=None):
 
     plt.rcParams.update({
         "font.size": args.fontsize,
+        # "figure.dpi": 100,
         # "axes.titlesize": 'medium',
         # "axes.labelsize": 'small',
         # "xtick.labelsize": 'small',
@@ -296,7 +297,7 @@ def main(argv=None):
         util.check_and_create_folder(path_annotation_s)
         n_cluster = len(adata_s.obs[label_type].unique())+1
         ncol = min((n_cluster//20 + min(n_cluster%20, 1)), 3)
-        with plt.rc_context():
+        with plt.rc_context({"figure.dpi": 100}):
             # sc.pl.umap(
             #     adata_s,
             #     color=label_type,

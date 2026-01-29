@@ -215,8 +215,8 @@ def main(argv=None):
             f"{sample.capitalize()} ID": sid,
             'Number of cells': n_cells_raw,
             'Number of genes': n_genes_raw,
-            'Median genes per cell': np.median(adata_s.obs['n_genes_by_counts']),
-            'Median of pct-mt':  np.median(adata_s.obs['pct_counts_mt']),
+            'Median genes per cell': np.nanmedian(adata_s.obs['n_genes_by_counts']),
+            'Median of pct-mt':  np.nanmedian(adata_s.obs['pct_counts_mt']),
         }]
 
         # scatter plots on total_counts against n_genes_by_counts
@@ -336,8 +336,8 @@ def main(argv=None):
             f"{sample.capitalize()} ID": sid,
             'Number of cells': f"{n_cells} ({n_cells/n_cells_raw:.0%})",
             'Number of genes': f"{n_genes} ({n_genes/n_genes_raw:.0%})",
-            'Median genes per cell': np.median(obs_s['n_genes_by_counts']),
-            'Median of pct-mt':  np.median(obs_s['pct_counts_mt']),
+            'Median genes per cell': np.nanmedian(obs_s['n_genes_by_counts']),
+            'Median of pct-mt':  np.nanmedian(obs_s['pct_counts_mt']),
         }]
 
 
