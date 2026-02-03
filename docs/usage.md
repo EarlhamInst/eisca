@@ -319,6 +319,7 @@ Users can set the options for cell-cell communication analysis in the parameter 
 | --mean_method  \<[trimean, truncatedMean]> | Specify the method for calculating the average gene expression per cell group. Method trimean produces fewer interactions than method truncatedMean. (default=trimean) |
 | --mincells  \<int> | The minimum number of cells required in each cell group. (default=10) |
 | --meta  \<[auto, sample, group]> | Choose a metadata column to define separate subsets of cells for analysis. (default=auto)|
+| --scale  \<float> | Adjust circular plot size by scaling plot's width and height. (default=1.0) |
 | --pdf | An switch of whether to generate figure files in PDF format. (false by default)|
 
 For example, `--args_cellchat "--group cellType --mean_method truncatedMean"`

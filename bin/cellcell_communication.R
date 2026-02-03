@@ -30,8 +30,9 @@ parser$add_argument("--mean_method", default="triMean",  choices=c('triMean', 't
         help="Specify the method for calculating the average gene expression per cell group")
 parser$add_argument("--mincells", type="integer", default=10, help="The minimum number of cells required in each cell group")
 parser$add_argument("--meta", default="auto", choices=c('auto', 'sample', 'group'), help="Specify a metadata column to define separate subsets of cells for analysis")
+parser$add_argument("--scale", type="double", default=1, help="Adjust circular plot size by scaling plot's width and height")
 parser$add_argument("--pdf", action="store_true", help="Whether to generate figure files in PDF format")
-# parser$add_argument("--plotcoef", type="float", default=1.0, help="plot size equals the coef times default plot size")
+# parser$add_argument("--plotcoef", type="double", default=1.0, help="plot size equals the coef times default plot size")
 
 args <- parser$parse_args()
 
@@ -130,7 +131,7 @@ for(sid in unique(meta[[batch]])){
     mat_weight_top <- mat_weight_active[top_idx, top_idx]
     topgrp_idx <- actgrp_idx[top_idx]
 
-    png(file=paste0(path_outdir_s, "/aggregated_network_all.png"), width=10,height=10, units="in", res=150)
+    png(file=paste0(path_outdir_s, "/aggregated_network_all.png"), width=10*args$scale,height=10*args$scale, units="in", res=150)
     netVisual_circle(
         mat_top, 
         vertex.weight = groupSize, 
@@ -140,7 +141,7 @@ for(sid in unique(meta[[batch]])){
         vertex.label.cex = 1.5
     )
     dev.off()
-    png(file=paste0(path_outdir_s, "/aggregated_network_all_weights.png"), width=10,height=10, units="in", res=150)
+    png(file=paste0(path_outdir_s, "/aggregated_network_all_weights.png"), width=10*args$scale,height=10*args$scale, units="in", res=150)
     netVisual_circle(
         mat_weight_top, 
         vertex.weight = groupSize, 
@@ -155,7 +156,7 @@ for(sid in unique(meta[[batch]])){
     mat <- mat_weight_top
     # grpnames <- rownames(mat)
     Ngrp <- nrow(mat)
-    png(file=paste0(path_outdir_s, "/aggregated_network_groups.png"),width=8,height=3*ceiling(Ngrp/3), units = "in", res=100*ceiling(Ngrp/3))
+    png(file=paste0(path_outdir_s, "/aggregated_network_groups.png"),width=9,height=3*ceiling(Ngrp/3), units = "in", res=100*ceiling(Ngrp/3))
     par(mfrow = c(ceiling(Ngrp/3),3), xpd=TRUE)
     for (i in 1:Ngrp) {
         mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
@@ -171,7 +172,7 @@ for(sid in unique(meta[[batch]])){
     dev.off()
 
     if(args$pdf){
-        pdf(file=paste0(path_outdir_s, "/aggregated_network_all.pdf"), width=10,height=10)
+        pdf(file=paste0(path_outdir_s, "/aggregated_network_all.pdf"), width=10*args$scale,height=10*args$scale)
         netVisual_circle(
             mat_top, 
             vertex.weight = groupSize, 
@@ -181,7 +182,7 @@ for(sid in unique(meta[[batch]])){
             vertex.label.cex = 1.5     
         )
         dev.off()
-        pdf(file=paste0(path_outdir_s, "/aggregated_network_all_weights.pdf"), width=10,height=10)
+        pdf(file=paste0(path_outdir_s, "/aggregated_network_all_weights.pdf"), width=10*args$scale,height=10*args$scale)
         netVisual_circle(
             mat_weight_top, 
             vertex.weight = groupSize, 
@@ -192,7 +193,7 @@ for(sid in unique(meta[[batch]])){
         )
         dev.off()
 
-        pdf(file=paste0(path_outdir_s, "/aggregated_network_groups.pdf"),width=8,height=3*ceiling(Ngrp/3))
+        pdf(file=paste0(path_outdir_s, "/aggregated_network_groups.pdf"),width=9,height=3*ceiling(Ngrp/3))
         par(mfrow = c(ceiling(Ngrp/3),3), xpd=TRUE)
         for (i in 1:Ngrp) {
             mat2 <- matrix(0, nrow = Ngrp, ncol = ncol(mat), dimnames = dimnames(mat))
@@ -217,30 +218,30 @@ for(sid in unique(meta[[batch]])){
     cellchat_subset <- netAnalysis_computeCentrality(cellchat_subset)
     for(pathway in cellchat_subset@netP$pathways){
         try({
-        png(file=paste0(path_outdir_s, "/pathway_network_circle_", pathway, '.png'), width=10,height=10, units="in", res=150)
+        png(file=paste0(path_outdir_s, "/pathway_network_circle_", pathway, '.png'), width=10*args$scale,height=10*args$scale, units="in", res=150)
         par(mar=c(1, 3, 1, 3), cex=1.5)
         netVisual_aggregate(cellchat_subset, signaling = pathway, layout = "circle", signaling.name = pathway)
         dev.off()
-        }, silent = TRUE)
-        png(file=paste0(path_outdir_s, "/pathway_network_chord_", pathway, '.png'), width=10,height=10, units="in", res=150)
+        png(file=paste0(path_outdir_s, "/pathway_network_chord_", pathway, '.png'), width=10*args$scale,height=10*args$scale, units="in", res=150)
         netVisual_chord_cell(cellchat_subset, signaling = pathway, lab.cex=1)
         dev.off()
         png(file=paste0(path_outdir_s, "/pathway_network_heatmap_", pathway, '.png'), width=1.5*Ngrp,height=1*Ngrp, units="in", res=100)
         print(netVisual_heatmap(cellchat_subset, signaling = pathway, color.heatmap = "Reds", font.size = 12, font.size.title = 15))
         dev.off()
+        }, silent = TRUE)
         if(args$pdf){
             try({
-            pdf(file=paste0(path_outdir_s, "/pathway_network_circle_", pathway, '.pdf'), width=10,height=10)
+            pdf(file=paste0(path_outdir_s, "/pathway_network_circle_", pathway, '.pdf'), width=10*args$scale,height=10*args$scale)
             par(mar=c(1, 3, 1, 3), cex=1.5)
             netVisual_aggregate(cellchat_subset, signaling = pathway, layout = "circle", signaling.name = pathway)
             dev.off()
-            }, silent = TRUE)
-            pdf(file=paste0(path_outdir_s, "/pathway_network_chord_", pathway, '.pdf'), width=10,height=10)
+            pdf(file=paste0(path_outdir_s, "/pathway_network_chord_", pathway, '.pdf'), width=10*args$scale,height=10*args$scale)
             netVisual_chord_cell(cellchat_subset, signaling = pathway, lab.cex=1)
             dev.off()
             pdf(file=paste0(path_outdir_s, "/pathway_network_heatmap_", pathway, '.pdf'), width=1.5*Ngrp,height=1*Ngrp)
             print(netVisual_heatmap(cellchat_subset, signaling = pathway, color.heatmap = "Reds", font.size = 12, font.size.title = 15))
-            dev.off()     
+            dev.off()
+            }, silent = TRUE)  
         }
 
         # Compute the contribution of each ligand-receptor pair to the overall signaling pathway
@@ -257,19 +258,23 @@ for(sid in unique(meta[[batch]])){
         # visualize cell-cell communication mediated by a single ligand-receptor pair
         for(i in 1:nrow(pairLR)){
             LR <- pairLR[i,]
-            png(file=paste0(path_outdir_s, "/pathway_network_LR_circle_", pathway, '.png'), width=8,height=8, units="in", res=200)
+            try({
+            png(file=paste0(path_outdir_s, "/pathway_network_LR_circle_", pathway, '.png'), width=10*args$scale,height=10*args$scale, units="in", res=200)
             netVisual_individual(cellchat_subset, signaling = pathway, pairLR.use = LR, layout = "circle")
             dev.off()
-            png(file=paste0(path_outdir_s, "/pathway_network_LR_chord_", pathway, '.png'), width=8,height=8, units="in", res=200)
+            png(file=paste0(path_outdir_s, "/pathway_network_LR_chord_", pathway, '.png'), width=10*args$scale,height=10*args$scale, units="in", res=200)
             netVisual_individual(cellchat_subset, signaling = pathway, pairLR.use = LR, layout = "chord")
             dev.off()
+            }, silent = TRUE)
             if(args$pdf){
-                pdf(file=paste0(path_outdir_s, "/pathway_network_LR_circle_", pathway, '.pdf'), width=8,height=8)
+                try({
+                pdf(file=paste0(path_outdir_s, "/pathway_network_LR_circle_", pathway, '.pdf'), width=10*args$scale,height=10*args$scale)
                 netVisual_individual(cellchat_subset, signaling = pathway, pairLR.use = LR, layout = "circle")
                 dev.off()
-                pdf(file=paste0(path_outdir_s, "/pathway_network_LR_chord_", pathway, '.pdf'), width=8,height=8)
+                pdf(file=paste0(path_outdir_s, "/pathway_network_LR_chord_", pathway, '.pdf'), width=10*args$scale,height=10*args$scale)
                 netVisual_individual(cellchat_subset, signaling = pathway, pairLR.use = LR, layout = "chord")
                 dev.off()
+                }, silent = TRUE)
             }
         }
 
@@ -305,11 +310,11 @@ for(sid in unique(meta[[batch]])){
             pairLR <- pairLR[order(pairLR$prob, decreasing = TRUE), ]
             pairLR <- head(pairLR, args$n_pairLR)
             try({
-            png(file=paste0(path_outdir_s, "/cellcell_LR_chord_", grpname, '.png'), width=12,height=10, units="in", res=150)
+            png(file=paste0(path_outdir_s, "/cellcell_LR_chord_", grpname, '.png'), width=12*args$scale,height=10*args$scale, units="in", res=150)
             netVisual_chord_gene(cellchat_subset, sources.use = i, pairLR.use = pairLR, lab.cex = 1.2, legend.pos.y = 30)
             dev.off()            
             if(args$pdf){
-                pdf(file=paste0(path_outdir_s, "/cellcell_LR_chord_", grpname, '.pdf'), width=12,height=10)
+                pdf(file=paste0(path_outdir_s, "/cellcell_LR_chord_", grpname, '.pdf'), width=12*args$scale,height=10*args$scale)
                 netVisual_chord_gene(cellchat_subset, sources.use = i, pairLR.use = pairLR, lab.cex = 1.2,legend.pos.y = 30)
                 dev.off()
             }
@@ -317,24 +322,33 @@ for(sid in unique(meta[[batch]])){
         }
 
         # Plot the signaling gene expression distribution using violin
-        png(file=paste0(path_outdir_s, "/pathway_genes_violin_", pathway, '.png'), width=1*Ngrp,height=10, units="in", res=150)
-        print(plotGeneExpression(cellchat, signaling = pathway, enriched.only = TRUE))
+        try({
+        active_idents <- levels(cellchat_subset@idents)
+        # png(file=paste0(path_outdir_s, "/pathway_genes_violin_", pathway, '.png'), width=1*Ngrp,height=10, units="in", res=150)
+        # print(plotGeneExpression(cellchat, signaling = pathway, enriched.only = TRUE))
+        png(file=paste0(path_outdir_s, "/pathway_genes_violin_", pathway, '.png'), width=max(8, 0.8*length(active_idents)), height=10, units="in", res=150)
+        print(plotGeneExpression(cellchat, signaling = pathway, enriched.only = TRUE, group.by = args$group))
         dev.off()
         if(args$pdf){
-            pdf(file=paste0(path_outdir_s, "/pathway_genes_violin_", pathway, '.pdf'), width=1*Ngrp,height=10)
-            print(plotGeneExpression(cellchat_subset, signaling = pathway, enriched.only = TRUE))
+            pdf(file=paste0(path_outdir_s, "/pathway_genes_violin_", pathway, '.pdf'), width=max(8, 0.8*length(active_idents)),height=10)
+            print(plotGeneExpression(cellchat_subset, signaling = pathway, enriched.only = TRUE, group.by = args$group))
             dev.off()
         }
+        }, silent = TRUE)
 
         # visualize the network centrality scores
-        png(file=paste0(path_outdir_s, "/pathway_network_centrality_", pathway, '.png'), width=1*Ngrp,height=4, units="in", res=100)
-        netAnalysis_signalingRole_network(cellchat_subset, signaling = pathway, width=1.5*Ngrp,height=4, font.size = 10)
+        try({
+        num_active <- length(levels(cellchat_subset@idents))
+        # png(file=paste0(path_outdir_s, "/pathway_network_centrality_", pathway, '.png'), width=1*Ngrp,height=4, units="in", res=100)
+        png(file=paste0(path_outdir_s, "/pathway_network_centrality_", pathway, '.png'), width=max(6, 0.8*num_active),height=4, units="in", res=100)
+        netAnalysis_signalingRole_network(cellchat_subset, signaling = pathway, width=1.5*num_active,height=4, font.size = 10)
         dev.off()
         if(args$pdf){
-            pdf(file=paste0(path_outdir_s, "/pathway_network_centrality_", pathway, '.pdf'), width=1*Ngrp,height=4)
-            netAnalysis_signalingRole_network(cellchat_subset, signaling = pathway, width=1.5*Ngrp,height=4, font.size = 10)
+            pdf(file=paste0(path_outdir_s, "/pathway_network_centrality_", pathway, '.pdf'), width=max(6, 0.8*num_active),height=4)
+            netAnalysis_signalingRole_network(cellchat_subset, signaling = pathway, width=1.5*num_active,height=4, font.size = 10)
             dev.off()
         }
+        }, silent = TRUE)
     }
 
     # Identify signals contributing the most to outgoing or incoming signaling of certain cell groups
@@ -369,6 +383,7 @@ params[["--gids"]] <- as.character(args$gids)
 params[["--cids"]] <- as.character(args$cids)
 params[["--group"]] <- as.character(args$group)
 params[["--n_actgrps"]] <- as.character(args$n_actgrps)
+params[["--n_pairLR"]] <- as.character(args$n_pairLR)
 if(args$normalize){params[["--normalize"]] <- as.character(args$normalize)}
 params[["--db"]] <- as.character(args$db)
 if (!is.null(args$dbc)) {params[["--dbc"]] <- as.character(args$dbc)}
@@ -376,6 +391,7 @@ if(args$dbenps){params[["--dbenps"]] <- as.character(args$dbenps)}
 params[["--mean_method"]] <- as.character(args$mean_method)
 params[["--mincells"]] <- as.character(args$mincells)
 params[["--threads"]] <- as.character(args$threads)
+params[["--scale"]] <- as.character(args$scale)
 write_json(params, file.path(args$outdir, "parameters.json"), pretty = TRUE, auto_unbox = TRUE)
 
 

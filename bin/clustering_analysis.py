@@ -282,10 +282,10 @@ def main(argv=None):
         n_comps = min((min(adata.X[:, adata.var["highly_variable"].values].shape)-1), 50)
         sc.tl.pca(
             adata, 
-            n_comps=n_comps, 
-            chunked=False,
-            zero_center=False, 
-            svd_solver='arpack'
+            n_comps=n_comps
+            # chunked=False,
+            # zero_center=False, 
+            # svd_solver='arpack'
         )
 
         # perform data integration
