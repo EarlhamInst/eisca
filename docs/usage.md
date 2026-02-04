@@ -75,7 +75,7 @@ The pipeline wutest has following parameters:
 | ----------- | ----------- |
 | --input  \<samplesheet.csv> | Input samplesheet file in CSV format |
 | --outdir \<directory> | Specify a output directory |
-| --analyses | Specify analysis phases in the pipeline. There are three analysis phases (see detailed explanation below): primary, secondary, and tertiary. Multiple phases can be applied and should be separated by commas. By default all analysis phases are applied and set as "primary,secondary,tertiary".   |
+| --analyses \<string> | Specify the analysis phases in the pipeline. There are three analysis phases (see detailed explanations below): primary, secondary, and tertiary. By default, all analysis phases are enabled and set to "primary,secondary,tertiary". You may run the pipeline phase by phase to perform exploratory analyses. In addition, you can execute specific analyses within the secondary and tertiary phases. You can also regenerate the analysis report by setting "report". |
 | --skip \<string> | To skip one or multiple analyses, you can specify a set of analysis names separated by commas. e.g. "--skip fastqc" |
 | --trim \<true/false> | A Boolean option, if set true the pipeline will apply tool Trimgalore to perform trimming to the input reads (false by default). |
 | -profile \<config profile> | Specify a config profile to run the pipeline, which can be docker, singularity and conda |
@@ -114,6 +114,7 @@ The pipline has 3 analysis phases:
    - Cell type annotation with scvi-tools
    - Differential expression analysis
    - Differential expression analysis with scvi-tools
+   - Cell-cell communication analysis
    - Trajectory & pseudotime analysis (To be implemented)
    - Other downstream analyses (To be implemented)
 
@@ -261,7 +262,7 @@ Users can set the options for differential analysis in the parameter `--args_dea
 | Options   | Description |
 | ----------- | ----------- |
 | --groupby  \<string> | Specify a column of the observation table to define groups. (default='leiden') |
-| --groups  \<string> | Specify a subset of groups, e.g. 'group1,group2'. By defualt, all groups are chosen. (default=None) |
+| --groups  \<string> | Specify a subset of groups, e.g. 'group1,group2'. By defualt, all groups are chosen. (default='all') |
 | --reference  \<string> | Users can spcecify a group name as reference, and all other groups will be comapred against with this group. By default each group will be compared against rest of groups. (default='rest') |
 | --method  \<['t-test', 'wilcoxon', 'logreg', 't-test_overestim_var']> | Choose a test method for differential expression anlaysis. The default method is 't-test', 't-test_overestim_var' overestimates variance of each group, 'wilcoxon' uses Wilcoxon rank-sum, 'logreg' uses logistic regression. (default='t-test')|
 | --n_genes  \<int> | Number of top marker genes to show in plots. (default=20) |

@@ -279,14 +279,16 @@ def main(argv=None):
                     batch = 'group'      
             
                 html.p("""This section presents the results of the differentially expression analysis using Scanpy's 
-                    rank_genes_groups function. These results allow users to identify marker genes by comparing 
-                    the ranked genes of one cluster against all others, as well as to explore differentially 
-                    expressed genes between two conditions.""")
+                    rank_genes_groups function. These results allow users to identify marker genes by comparing genes 
+                       that are highly ranked in one cluster against the rest, as well as to explore differentially 
+                       expressed genes at the cellular level by comparing one group of cells against another across 
+                       all cells or certain cell types.""")
 
                 # showing plots for DEA between conditions for all cells
                 if util.check_file(f"{path_dea}", '*.png'):
                     html.p("""The following plots show differentially expressed genes between the two conditions.""")                        
                     plots_from_image_files(path_dea, suffix=['plot_genes_*.png'])
+                    html.div(style="height: 50px;")
                     plots_from_image_files(path_dea, suffix=['dotplot_genes_*.png'])
 
                 # showing plots for DEA between conditions for each celltype

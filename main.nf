@@ -70,7 +70,8 @@ workflow NFCORE_EISCA {
         'annotation_scvi', 
         'dea', 
         'dea_scvi', 
-        'cellchat']).isEmpty()){    
+        'cellchat',
+        'report']).isEmpty()){
         // GET_PARAMS()
         MAKE_REPORT (
             ch_results,

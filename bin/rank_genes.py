@@ -46,7 +46,7 @@ def parse_args(argv=None):
     )
     parser.add_argument(
         "--groups",
-        default=None,
+        default='all',
         help="Specify a subset of groups, e.g. 'group1,group2'.",
     )
     parser.add_argument(
@@ -131,7 +131,7 @@ def main(argv=None):
             logger.error(f"Please specify a observation column for grouping!")
             sys.exit(2)
 
-    groups = args.groups.split(',') if args.groups else args.groups
+    groups = args.groups.split(',') if args.groups!='all' else None
 
     if args.meta == 'auto':
         # batch = 'group' if hasattr(adata.obs, 'group') else 'sample'
@@ -146,7 +146,7 @@ def main(argv=None):
     
     # differential expression analysis
     if groupby == 'group': # between conditions
-        if not groups:
+        if groups == None:
             groups = list(adata.obs['group'].unique())
             groups.remove(args.reference)
 
@@ -239,7 +239,7 @@ def main(argv=None):
                 adata_s, 
                 groupby, 
                 method=args.method, 
-                groups=groups, 
+                groups=groups if groups else 'all', 
                 reference=args.reference,
             )
             with plt.rc_context():
