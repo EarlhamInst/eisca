@@ -187,28 +187,43 @@ def main(argv=None):
     scanvi_ref = None
     if args.h5ad_ref:
         adata_ref = sc.read_h5ad(args.h5ad_ref)
-        # Clean up Inf and NaN values in X
-        if sp.issparse(adata_ref.X):
-            adata_ref.X = adata_ref.X.toarray()
-        adata_ref.X = np.nan_to_num(adata_ref.X, nan=0.0, posinf=0.0, neginf=0.0)
-        # Normalize/log to avoid huge magnitudes producing inf later
-        sc.pp.normalize_total(adata_ref, target_sum=1e4, inplace=True)
-        sc.pp.log1p(adata_ref)
+        if "counts" not in adata_ref.layers: 
+            adata_ref.layers["counts"] = adata_ref.X.copy()
 
+        # Clean counts layer (not X), without densifying
+        Xc = adata_ref.layers["counts"]
+        if sp.issparse(Xc):
+            data = Xc.data
+            data = np.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0)
+            Xc.data = data
+        else:
+            adata_ref.layers["counts"] = np.nan_to_num(Xc, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # HVG selection on a temporary normalized/log view
+        tmp = adata_ref.copy()
+        tmp.X = tmp.layers["counts"]
+        sc.pp.normalize_total(tmp, target_sum=1e4)
+        sc.pp.log1p(tmp)
         sc.pp.highly_variable_genes(
-            adata_ref, 
-            n_top_genes=args.n_top_genes, 
+            tmp,
+            n_top_genes=args.n_top_genes,
             batch_key=args.batch_key,
-            subset=True
+            subset=False
         )
+        hvg = tmp.var["highly_variable"].values
+        adata_ref = adata_ref[:, hvg].copy()
+
+        # Clean up Inf and NaN values in X
+        # if sp.issparse(adata_ref.X):
+        #     adata_ref.X = adata_ref.X.toarray()
+        # adata_ref.X = np.nan_to_num(adata_ref.X, nan=0.0, posinf=0.0, neginf=0.0)
+        # # Normalize/log to avoid huge magnitudes producing inf later
+        # sc.pp.normalize_total(adata_ref, target_sum=1e4, inplace=True)
+        # sc.pp.log1p(adata_ref)
+
         # sc.pp.highly_variable_genes(
-        #     adata_ref,
-        #     flavor='seurat', 
-        #     min_mean=0.0125, 
-        #     max_mean=1000000000, 
-        #     min_disp=0.5, 
-        #     max_disp=50, 
-        #     n_bins=20, 
+        #     adata_ref, 
+        #     n_top_genes=args.n_top_genes, 
         #     batch_key=args.batch_key,
         #     subset=True
         # )
@@ -218,8 +233,6 @@ def main(argv=None):
         adata = adata[:, common_genes].copy()
         # adata = adata[:, adata_ref.var_names].copy()
 
-        if "counts" not in adata_ref.layers: 
-            adata_ref.layers["counts"] = adata_ref.X.copy()
         scvi.model.SCVI.setup_anndata(adata_ref, batch_key=args.batch_key, layer="counts")
         scvi_ref = scvi.model.SCVI(
             adata_ref,
@@ -299,16 +312,6 @@ def main(argv=None):
     sc.pp.neighbors(adata, use_rep='X_scanvi')
     sc.tl.umap(adata)
 
-
-    # Filter Out Small labels
-    if args.min_label_pct > 0:
-        keep_mask = np.array([True] * adata.n_obs)
-        pcts = adata.obs['scanvi_label'].value_counts(normalize=True) * 100
-        small_clusters = pcts[pcts < args.min_label_pct].index.tolist()
-        is_in_small_cluster = adata.obs['scanvi_label'].isin(small_clusters)
-        keep_mask = keep_mask & (~is_in_small_cluster)
-        adata = adata[keep_mask].copy()
-
     # save the AnnData into a h5ad file
     adata.write_h5ad(Path(path_annotation, 'adata_annotation.h5ad'))
 
@@ -324,6 +327,20 @@ def main(argv=None):
         batch = args.meta
 
     label_type = 'scanvi_label'
+
+    # Filter Out Small labels
+    if args.min_label_pct > 0:
+        pcts = pd.crosstab(adata.obs[batch], adata.obs['scanvi_label'], normalize='index') * 100
+        labels_to_keep = pcts.columns[(pcts >= args.min_label_pct).any(axis=0)]
+        adata = adata[adata.obs['scanvi_label'].isin(labels_to_keep)].copy()
+
+        # keep_mask = np.array([True] * adata.n_obs)
+        # pcts = adata.obs['scanvi_label'].value_counts(normalize=True) * 100
+        # small_clusters = pcts[pcts < args.min_label_pct].index.tolist()
+        # is_in_small_cluster = adata.obs['scanvi_label'].isin(small_clusters)
+        # keep_mask = keep_mask & (~is_in_small_cluster)
+        # adata = adata[keep_mask].copy()
+
     for sid in sorted(adata.obs[batch].unique()):
         adata_s = adata[adata.obs[batch]==sid]   
         path_annotation_s = Path(path_annotation, f"{batch}_{sid}")
