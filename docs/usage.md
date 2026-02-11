@@ -250,6 +250,8 @@ Users can set the options for cell-type annotation analysis with scvi-tools in t
 | --batch_size  \<int> | Specify the batch size for training scVI model. (default=None)|
 | --scanvi_epochs  \<int> | Specify the number of epochs for training scANVI model. (default=None)|
 | --n_samples_pl  \<int> | Specify the number of samples per label for training scANVI model. (default=None)|
+| --early_stop | An switch of whether to stop model training based on validation ELBO. (false by default)|
+| --min_label_pct  \<float> | Specify the minimal label percentage number for filtering out small and unstable labels. (default=0) |
 | --meta  \<[auto, sample, group]> | Choose a metadata column as the batch classes on which the clustering UMAPs will be displayed. By default, it is set to 'auto', which means it will use the 'group' column as the batch classes if 'group' is defined in the samplesheet file; otherwise, it will use the 'sample' column. |
 | --fontsize  \<int> | Specify the font size for plots. (default=12) |
 | --pdf | An switch of whether to generate figure files in PDF format. (false by default)|

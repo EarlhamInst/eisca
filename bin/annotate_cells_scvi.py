@@ -79,6 +79,11 @@ def parse_args(argv=None):
         help="Specify a batch key for reference data.",
     )
     parser.add_argument(
+        "--early_stop",
+        help="Whether to stop training based on validation metrics.",
+        action='store_true',
+    )
+    parser.add_argument(
         "--label_key",
         default=None,
         help="Specify a label key of cell types for reference data.",
@@ -88,7 +93,13 @@ def parse_args(argv=None):
         type=int,
         help="Set number of highly-variable genes to keep.",
         default=2000,
-    )                  
+    )
+    parser.add_argument(
+        "--min_label_pct",
+        type=float,
+        help="Set minimal label percentage number for filtering out small labels.",
+        default=0,
+    )                
     parser.add_argument(
         "--meta",
         default='auto',
@@ -168,6 +179,10 @@ def main(argv=None):
     torch.set_float32_matmul_precision("high")
 
     adata = sc.read_h5ad(args.h5ad)
+    if "counts" in adata.layers:
+        adata.X = adata.layers["counts"].copy()
+    elif adata.raw is not None:
+        adata = adata.raw.to_adata()
 
     scanvi_ref = None
     if args.h5ad_ref:
@@ -223,6 +238,10 @@ def main(argv=None):
         # if args.devices is not None:
         #     train_kwargs["devices"] = args.devices
         #     train_kwargs["strategy"] = "ddp_find_unused_parameters_true"
+        if args.early_stop:
+            train_kwargs["early_stopping"] = True
+            train_kwargs["early_stopping_patience"] = 20
+            train_kwargs["early_stopping_min_delta"] = 1e-3        
         scvi_ref.train(**train_kwargs)
 
         # if not IS_MAIN_PROCESS: sys.exit(0)
@@ -244,6 +263,10 @@ def main(argv=None):
         # if args.devices is not None:
         #     train_kwargs["devices"] = args.devices
         #     train_kwargs["strategy"] = "ddp_find_unused_parameters_true"
+        if args.early_stop:
+            train_kwargs["early_stopping"] = True
+            train_kwargs["early_stopping_patience"] = 20
+            train_kwargs["early_stopping_min_delta"] = 1e-3 
         scanvi_ref.train(**train_kwargs)  
         # scanvi_ref.train(max_epochs=20, n_samples_per_label=100, devices=args.devices)
 
@@ -275,6 +298,16 @@ def main(argv=None):
     adata.obs['scanvi_prob'] = np.asarray(probs).max(axis=1)
     sc.pp.neighbors(adata, use_rep='X_scanvi')
     sc.tl.umap(adata)
+
+
+    # Filter Out Small labels
+    if args.min_label_pct > 0:
+        keep_mask = np.array([True] * adata.n_obs)
+        pcts = adata.obs['scanvi_label'].value_counts(normalize=True) * 100
+        small_clusters = pcts[pcts < args.min_label_pct].index.tolist()
+        is_in_small_cluster = adata.obs['scanvi_label'].isin(small_clusters)
+        keep_mask = keep_mask & (~is_in_small_cluster)
+        adata = adata[keep_mask].copy()
 
     # save the AnnData into a h5ad file
     adata.write_h5ad(Path(path_annotation, 'adata_annotation.h5ad'))
@@ -374,7 +407,9 @@ def main(argv=None):
             params.update({"--model_path": str(args.model_path)})
         params.update({"--batch_key": str(args.batch_key)}) 
         params.update({"--label_key": str(args.label_key)}) 
-        params.update({"--n_top_genes": str(args.n_top_genes)}) 
+        params.update({"--n_top_genes": str(args.n_top_genes)})
+        if args.early_stop: params.update({"--early_stop": args.early_stop})  
+        if args.min_label_pct > 0: params.update({"--min_label_pct": args.min_label_pct})  
         params.update({"--meta": args.meta})        
         if args.scvi_epochs: params.update({"--scvi_epochs": args.scvi_epochs})
         if args.scanvi_epochs: params.update({"--scanvi_epochs": args.scanvi_epochs})
