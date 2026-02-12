@@ -147,6 +147,12 @@ def parse_args(argv=None):
         help="Set number of cpus/gpus for scvi training.",
         default=None,
     )
+    parser.add_argument(
+        "--min_score",
+        type=float,
+        help="Set minimal score for showing predicted labels in the proportion plot.",
+        default=0,
+    )
     return parser.parse_args(argv)
 
 
@@ -212,21 +218,6 @@ def main(argv=None):
         )
         hvg = tmp.var["highly_variable"].values
         adata_ref = adata_ref[:, hvg].copy()
-
-        # Clean up Inf and NaN values in X
-        # if sp.issparse(adata_ref.X):
-        #     adata_ref.X = adata_ref.X.toarray()
-        # adata_ref.X = np.nan_to_num(adata_ref.X, nan=0.0, posinf=0.0, neginf=0.0)
-        # # Normalize/log to avoid huge magnitudes producing inf later
-        # sc.pp.normalize_total(adata_ref, target_sum=1e4, inplace=True)
-        # sc.pp.log1p(adata_ref)
-
-        # sc.pp.highly_variable_genes(
-        #     adata_ref, 
-        #     n_top_genes=args.n_top_genes, 
-        #     batch_key=args.batch_key,
-        #     subset=True
-        # )
 
         common_genes = adata_ref.var_names.intersection(adata.var_names)
         adata_ref = adata_ref[:, common_genes].copy()
@@ -383,6 +374,8 @@ def main(argv=None):
 
 
     # stacked proportion bar plot to compare between batches
+    if args.min_score > 0:
+        adata = adata[adata.obs['scanvi_prob'] > args.min_score].copy()
     sc.pl.umap(adata, color=label_type, show=False) # get adata.uns['_colors']     
     n_cluster = len(adata.obs[label_type].unique())+1
     ncol = min((n_cluster//20 + min(n_cluster%20, 1)), 3)
@@ -433,6 +426,7 @@ def main(argv=None):
         if args.batch_size: params.update({"--batch_size": args.batch_size})
         # if args.devices: params.update({"--devices": args.devices})
         if args.n_samples_pl: params.update({"--n_samples_pl": args.n_samples_pl})
+        if args.min_score > 0: params.update({"--min_score": args.min_score})  
         json.dump(params, file, indent=4)
 
 

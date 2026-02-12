@@ -81,6 +81,12 @@ def parse_args(argv=None):
         help="Choose a metadata column as the batch for clustering",
     )
     parser.add_argument(
+        "--min_score",
+        type=float,
+        help="Set minimal score for showing predicted labels in the proportion plot.",
+        default=0,
+    )
+    parser.add_argument(
         "--fontsize",
         type=int,
         help="Set font size for plots.",
@@ -199,6 +205,8 @@ def main(argv=None):
 
 
     # stacked proportion bar plot to compare between batches
+    if args.min_score > 0:
+        adata = adata[adata.obs['conf_score'] > args.min_score].copy()
     sc.pl.umap(adata, color=label_type, show=False) # get adata.uns['_colors']
     n_cluster = len(adata.obs[label_type].unique())+1
     ncol = min((n_cluster//20 + min(n_cluster%20, 1)), 3)  
@@ -245,6 +253,7 @@ def main(argv=None):
         params.update({"--meta": args.meta})        
         if args.no_majority_voting: params.update({"--no_majority_voting": args.no_majority_voting})
         if args.update_models: params.update({"--update_models": args.update_models})
+        if args.min_score > 0: params.update({"--min_score": args.min_score})
         json.dump(params, file, indent=4)
 
 
