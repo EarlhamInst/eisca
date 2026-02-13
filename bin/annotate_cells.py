@@ -155,9 +155,9 @@ def main(argv=None):
     if args.meta == 'auto':
         # batch = 'group' if hasattr(adata.obs, 'group') else 'sample'
         batch = 'sample'
-        if hasattr(adata.obs, 'group'):
+        if 'group' in adata.obs.columns:
             batch = 'group'
-        elif hasattr(adata.obs, 'plate'):
+        elif 'plate' in adata.obs.columns:
             batch = 'plate'     
     else:
         batch = args.meta

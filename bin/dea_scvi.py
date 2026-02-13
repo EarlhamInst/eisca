@@ -20,22 +20,6 @@ import scvi
 logger = util.get_named_logger('DEA_SCVI')
 
 
-# import torch.distributed as dist
-
-# def is_main_process():
-#     # Torch DDP sets this automatically
-#     if dist.is_available() and dist.is_initialized():
-#         return dist.get_rank() == 0
-
-#     # Fall back to environment vars if dist not yet initialized
-#     for key in ["RANK", "SLURM_PROCID", "LOCAL_RANK", "GLOBAL_RANK"]:
-#         if key in os.environ:
-#             return os.environ[key] in ("0", 0)
-#     return True
-
-# IS_MAIN_PROCESS = is_main_process()
-
-
 
 def parse_args(argv=None):
     """Define and immediately parse command line arguments."""
@@ -112,7 +96,7 @@ def parse_args(argv=None):
     parser.add_argument(
         "--group1",
         type=util.stringlist,
-        help="fist groups of cells for DEA.",
+        help="first groups of cells for DEA.",
         default=None,
     )
     parser.add_argument(
@@ -124,12 +108,12 @@ def parse_args(argv=None):
     parser.add_argument(
         "--celltype_col",
         default=None,
-        help="Spcecify a column used to define cell-types for DEA between groups.",
+        help="Specify a column used to define cell-types for DEA between groups.",
     )
     parser.add_argument(
         "--celltypes",
         default=None,
-        help="Spcecify a list cell-types for DEA between groups, e.g. 'celltype1,celltype2'.",
+        help="Specify a list cell-types for DEA between groups, e.g. 'celltype1,celltype2'.",
     )
     # parser.add_argument(
     #     "--pairing",
@@ -146,7 +130,7 @@ def parse_args(argv=None):
     parser.add_argument(
         "--deg_lfc",
         type=float,
-        help="Set threshold of Log Folder Change for DEGs.",
+        help="Set threshold of Log Fold Change for DEGs.",
         default=0,
     )
     parser.add_argument(
@@ -188,13 +172,17 @@ def main(argv=None):
     util.check_and_create_folder(path_scvi_model)
 
     adata = sc.read_h5ad(args.h5ad)
+    if "counts" in adata.layers:
+        adata.X = adata.layers["counts"].copy()
+    elif adata.raw is not None:
+        adata = adata.raw.to_adata()
+    adata.layers["counts"] = adata.X.copy().tocsr()
 
     # Run Poisson-based HVG selection
     scvi.data.poisson_gene_selection(adata, layer='counts')
-    adata = adata[:, adata.var["highly_variable"]]
-    adata.layers["counts"] = adata.X.copy().tocsr()
+    adata = adata[:, adata.var["highly_variable"]].copy()
 
-    batch_key = 'plate' if hasattr(adata.obs, 'plate') else 'sample' # correct on plates for smart-seq data
+    batch_key = "plate" if "plate" in adata.obs.columns else "sample" # correct on plates for smart-seq data
 
     torch.set_float32_matmul_precision("high")
 
@@ -230,9 +218,6 @@ def main(argv=None):
         early_stopping_monitor="elbo_validation"
     )
 
-    # if not IS_MAIN_PROCESS: sys.exit(0)
-    # if IS_MAIN_PROCESS:
-
     model.save(path_scvi_model, overwrite=True)
     adata.obsm['X_scvi'] = model.get_latent_representation()
     adata.layers['scvi_normalized'] = model.get_normalized_expression(library_size=1e4)
@@ -243,9 +228,9 @@ def main(argv=None):
     if args.meta == 'auto':
         # batch = 'group' if hasattr(adata.obs, 'group') else 'sample'
         batch = 'sample'
-        if hasattr(adata.obs, 'group'):
+        if 'group' in adata.obs.columns:
             batch = 'group'
-        elif hasattr(adata.obs, 'plate'):
+        elif 'plate' in adata.obs.columns:
             batch = 'plate' 
     else:
         batch = args.meta
@@ -335,12 +320,7 @@ def main(argv=None):
                     if args.pdf:
                         plt.savefig(Path(path_analysis_s, f"heatmap_{celltype}_{args.groupby}.pdf"), bbox_inches="tight")     
 
-        else: # DEA between conditions for all cells      
-            # de_df = model.differential_expression(
-            #     groupby=args.groupby, 
-            #     group1=args.group1, 
-            #     group2=args.group2
-            # )
+        else: # DEA between conditions for all cells
             de_df_list = []
             for group1 in args.group1 if args.group1 else [None]:
                 for group2 in args.group2 if args.group2 else [None]:

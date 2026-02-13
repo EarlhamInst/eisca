@@ -270,8 +270,8 @@ Users can set the options for differential analysis in the parameter `--args_dea
 | --reference  \<string> | Users can spcecify a group name as reference, and all other groups will be comapred against with this group. By default each group will be compared against rest of groups. (default='rest') |
 | --method  \<['t-test', 'wilcoxon', 'logreg', 't-test_overestim_var']> | Choose a test method for differential expression anlaysis. The default method is 't-test', 't-test_overestim_var' overestimates variance of each group, 'wilcoxon' uses Wilcoxon rank-sum, 'logreg' uses logistic regression. (default='t-test')|
 | --n_genes  \<int> | Number of top marker genes to show in plots. (default=20) |
-| --celltype_col \<string> | Spcecify a column of the observation table to define cell-types, and DEA will be performed between groups for each cell-type. (default=None) |
-| --celltypes \<string> | Spcecify a subset of cell-types for DEA between groups, e.g. 'celltype1,celltype2'. By default all cell-types are used. (default=None) |
+| --celltype_col \<string> | Specify a column of the observation table to define cell-types, and DEA will be performed between groups for each cell-type. (default=None) |
+| --celltypes \<string> | Specify a subset of cell-types for DEA between groups, e.g. 'celltype1,celltype2'. By default all cell-types are used. (default=None) |
 | --meta  \<[auto, sample, group]> | Choose a metadata column as the batch classes on which the clustering UMAPs will be displayed. By default, it is set to 'auto', which means it will use the 'group' column as the batch classes if 'group' is defined in the samplesheet file; otherwise, it will use the 'sample' column. |
 | --fontsize  \<int> | Specify the font size for plots. (default=12) |
 | --pdf | An switch of whether to generate figure files in PDF format. (false by default)|
@@ -293,10 +293,10 @@ Users can set the options for differential analysis with scvi-tools in the param
 | --covar_con  \<[string]> | Specify the list of continuous covariates for scVI models. (default=[]) |
 | --epochs  \<int> | Specify the number of epochs for scVI model training. (default=None) |
 | --batch_size  \<int> | Specify the batch size for scVI model training. (default=None) |
-| --celltype_col \<string> | Spcecify a column of the observation table to define cell-types, and DEA will be performed between groups for each cell-type. (default=None)|
-| --celltypes \<string> | Spcecify a subset of cell-types for DEA between groups, e.g. 'celltype1,celltype2'. By default all cell-types are used. (default=None) |
+| --celltype_col \<string> | Specify a column of the observation table to define cell-types, and DEA will be performed between groups for each cell-type. (default=None)|
+| --celltypes \<string> | Specify a subset of cell-types for DEA between groups, e.g. 'celltype1,celltype2'. By default all cell-types are used. (default=None) |
 | --n_markers  \<int> | Number of top marker genes to show in plots. (default=3) |
-| --deg_lfc  \<int> | Set threshold of Log Folder Change for DEGs. (default=0) |
+| --deg_lfc  \<int> | Set threshold of Log Fold Change for DEGs. (default=0) |
 | --deg_bayes  \<int> | Set threshold of bayes factor for DEGs. (default=0) |
 | --deg_nzerosprop  \<int> | Set threshold of proportion of non-zero expression cells in group1 for DEGs. (default=0) |
 | --meta  \<[auto, sample, group]> | Choose a metadata column as the batch classes on which the clustering UMAPs will be displayed. By default, it is set to 'auto', which means it will use the 'group' column as the batch classes if 'group' is defined in the samplesheet file; otherwise, it will use the 'sample' column. |
