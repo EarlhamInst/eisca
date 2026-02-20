@@ -11,8 +11,8 @@ process ANNOTATE_CELLS_SCVI {
     // path h5ad_ref
 
     output:
-    path "annotation_scvi"
-    path "annotation_scvi/*.h5ad",  emit: h5ad
+    path "annotation/scvi"
+    path "annotation/scvi/*.h5ad",  emit: h5ad
     path "versions.yml",  emit: versions
 
     when:
@@ -23,7 +23,7 @@ process ANNOTATE_CELLS_SCVI {
     """
     annotate_cells_scvi.py \\
         --h5ad ${h5ad_filtered} \\
-        --outdir annotation_scvi \\
+        --outdir annotation/scvi \\
         $args \\
 
 

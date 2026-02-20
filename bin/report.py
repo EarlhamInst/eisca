@@ -140,8 +140,8 @@ def main(argv=None):
     path_cell_filtering = Path(path_quant_qc, 'cell_filtering')
     # path_cell_filtering_dist = Path(path_cell_filtering, 'distribution')
     path_clustering = Path(args.results, 'clustering')
-    path_annotation = Path(args.results, 'annotation')
-    path_annotation_scvi = Path(args.results, 'annotation_scvi')
+    path_annotation = Path(args.results, 'annotation/celltypist')
+    path_annotation_scvi = Path(args.results, 'annotation/scvi')
     path_dea = Path(args.results, 'dea')
     path_dea_scvi = Path(args.results, 'dea_scvi')
     path_cellchat = Path(args.results, 'cellchat')
@@ -253,7 +253,8 @@ def main(argv=None):
                     batch = 'sample'
                 elif util.check_file(f"{path_annotation_scvi}/group_*", ''):
                     batch = 'group'
-                Nbatch = len(samplesheet[batch].unique())               
+                Nbatch = len(samplesheet[batch].unique())
+                if Nbatch == 1: Nbatch = 2                
                 html.p(f"""This section presents cell-type annotation results using scvi-tools, which predicts the 
                        cell types of the query dataset based on a scANVI model trained on the reference latent 
                        space and transferred to the query data.""")
@@ -273,70 +274,106 @@ def main(argv=None):
     if path_dea.exists() or path_dea_scvi.exists():
         with report.add_section('Differential expression analysis', 'DEA'):
             if path_dea.exists():
-                if util.check_file(f"{path_dea}/sample_*", ''):
-                    batch = 'sample'
-                elif util.check_file(f"{path_dea}/group_*", ''):
-                    batch = 'group'      
-            
-                html.p("""This section presents the results of the differentially expression analysis using Scanpy's 
-                    rank_genes_groups function. These results allow users to identify marker genes by comparing genes 
-                       that are highly ranked in one cluster against the rest, as well as to explore differentially 
-                       expressed genes at the cellular level by comparing one group of cells against another across 
-                       all cells or certain cell types.""")
+                path_dea_markers = Path(path_dea, 'markers')
+                path_dea_compare = Path(path_dea, 'compare')
+                path_dea_compare_ct = Path(path_dea, 'compare_ct')
+                if path_dea_markers.exists():
+                    if util.check_file(f"{path_dea_markers}/sample_*", ''):
+                        batch = 'sample'
+                    elif util.check_file(f"{path_dea_markers}/group_*", ''):
+                        batch = 'group'                
+                    html.p("""This section presents the results of the differential expression analysis performed using 
+                            Scanpy’s rank_genes_groups function. These results enable the identification of marker genes 
+                            by comparing genes that are highly ranked in one cluster against all other clusters.""")
+                    # showing plots for one cluster vs rest for each sample/group
+                    if util.check_file(f"{path_dea_markers}/{batch}_*", '*.png'):
+                        html.p(f"""The following plots display the ranking of genes for one of the cell clusters against the rest of the clusters across {batch}s.""")                        
+                        plots_from_image_files(path_dea_markers, meta=batch, suffix=['plot_genes_*.png'])
+                        plots_from_image_files(path_dea_markers, meta=batch, suffix=['dotplot_genes_*.png'])
+                    show_analysis_parameters(f"{path_dea_markers}/parameters.json")
+                    if path_dea_compare.exists() or path_dea_compare_ct.exists(): html.hr(style="border: 1px solid grey;")
 
-                # showing plots for DEA between conditions for all cells
-                if util.check_file(f"{path_dea}", '*.png'):
-                    html.p("""The following plots show differentially expressed genes between the two conditions.""")                        
-                    plots_from_image_files(path_dea, suffix=['plot_genes_*.png'])
-                    html.div(style="height: 50px;")
-                    plots_from_image_files(path_dea, suffix=['dotplot_genes_*.png'])
+                if path_dea_compare.exists():       
+                    html.p("""This section presents the results of the differential expression analysis performed using 
+                            Scanpy’s rank_genes_groups function. The analysis identifies differentially expressed genes at 
+                            the cellular level by comparing one group of cells against another across all cells.""")
+                    # showing plots for DEA between conditions for all cells
+                    if util.check_file(f"{path_dea_compare}", '*.png'):
+                        html.p("""The following plots show the ranking of differentially expressed genes of one group of 
+                                cells against another.""")
+                        plots_from_image_files(path_dea_compare, suffix=['dotplot_*.png'])                       
+                        html.div(style="height: 50px;")
+                        plots_from_image_files(path_dea_compare, suffix=['dotplot_genes_*.png'])
+                    show_analysis_parameters(f"{path_dea_compare}/parameters.json")
+                    if path_dea_compare_ct.exists(): html.hr(style="border: 1px solid grey;")
 
-                # showing plots for DEA between conditions for each celltype
-                if util.check_file(f"{path_dea}/celltype_*", '*.png'):
-                    html.p("""The following plots show differentially expressed genes between two conditions across various cell types/clusters.""")                        
-                    plots_from_image_files(path_dea, meta='celltype', suffix=['plot_genes_*.png'])
-                    plots_from_image_files(path_dea, meta='celltype', suffix=['dotplot_genes_*.png'])
-
-                # showing plots for one cluster vs rest for each sample/group
-                if util.check_file(f"{path_dea}/{batch}_*", '*.png'):
-                    html.p(f"""The following plots display the ranking of genes for one of the cell clusters against the rest of the clusters across {batch}s.""")                        
-                    plots_from_image_files(path_dea, meta=batch, suffix=['plot_genes_*.png'])
-                    plots_from_image_files(path_dea, meta=batch, suffix=['dotplot_genes_*.png'])
-
-                show_analysis_parameters(f"{path_dea}/parameters.json")
-                if path_annotation_scvi.exists(): html.hr(style="border: 1px solid grey;")
+                if path_dea_compare_ct.exists():
+                    if util.check_file(f"{path_dea_compare_ct}/sample_*", ''):
+                        batch = 'sample'
+                    elif util.check_file(f"{path_dea_compare_ct}/group_*", ''):
+                        batch = 'group'        
+                    html.p("""This section presents the results of the differential expression analysis performed using 
+                            Scanpy’s rank_genes_groups function. The analysis identifies differentially expressed genes at 
+                            the cellular level by comparing one group of cells against another across cell types/clusters.""")
+                    # showing plots for DEA between conditions for each celltype
+                    if util.check_file(f"{path_dea_compare_ct}/celltype_*", '*.png'):
+                        html.p("""The following plots show differentially expressed genes between two conditions across cell types/clusters.""")                        
+                        plots_from_image_files(path_dea_compare_ct, meta='celltype', suffix=['plot_genes_*.png'])
+                        plots_from_image_files(path_dea_compare_ct, meta='celltype', suffix=['dotplot_genes_*.png'])
+                    show_analysis_parameters(f"{path_dea_compare_ct}/parameters.json")
 
             if path_dea_scvi.exists():
-                if util.check_file(f"{path_dea_scvi}/sample_*", ''):
-                    batch = 'sample'
-                elif util.check_file(f"{path_dea_scvi}/group_*", ''):
-                    batch = 'group'      
-            
-                html.p("""This section presents the results of the differentially expression analysis using scvi-tools's 
-                       differential_expression function by estimating the posterior distribution of the log fold-change (LFC) 
-                       between subpopulations. These results allow users to identify marker genes by comparing the ranked 
-                       genes of one cluster against all others, as well as to explore differentially expressed genes between 
-                       two conditions.""")
+                path_dea_markers = Path(path_dea_scvi, 'markers')
+                path_dea_compare = Path(path_dea_scvi, 'compare')
+                path_dea_compare_ct = Path(path_dea_scvi, 'compare_ct')
+                if path_dea_markers.exists():
+                    if util.check_file(f"{path_dea_markers}/sample_*", ''):
+                        batch = 'sample'
+                    elif util.check_file(f"{path_dea_markers}/group_*", ''):
+                        batch = 'group'                
+                    html.p("""This section presents the results of the differentially expression analysis using scvi-tools's 
+                        differential_expression function by estimating the posterior distribution of the log fold-change (LFC) 
+                        between subpopulations. These results allow users to identify marker genes by comparing genes that 
+                        are highly ranked in one cluster against all other clusters.""")
+                    # showing plots for one cluster vs rest for each sample/group
+                    if util.check_file(f"{path_dea_markers}/{batch}_*", '*.png'):
+                        html.p(f"""The following plots display the ranking of genes for one of the cell clusters against the rest of the clusters across {batch}s.""")                        
+                        plots_from_image_files(path_dea_markers, meta=batch, suffix=['dotplot_*.png'])
+                        plots_from_image_files(path_dea_markers, meta=batch, suffix=['heatmap_*.png'])
+                    show_analysis_parameters(f"{path_dea_markers}/parameters.json")
+                    if path_dea_compare.exists() or path_dea_compare_ct.exists(): html.hr(style="border: 1px solid grey;")
 
-                # showing plots for DEA between conditions for all cells
-                if util.check_file(f"{path_dea_scvi}", '*.png'):
-                    html.p("""The following plots show differentially expressed genes between the two conditions.""")                        
-                    plots_from_image_files(path_dea_scvi, suffix=['dotplot_*.png'])
-                    plots_from_image_files(path_dea_scvi, suffix=['heatmap_*.png'])
+                if path_dea_compare.exists():       
+                    html.p("""This section presents the results of the differentially expression analysis using scvi-tools's 
+                            differential_expression function by estimating the posterior distribution of the log fold-change (LFC) 
+                            between subpopulations. The analysis identifies differentially expressed genes at the cellular 
+                           level by comparing one group of cells against another across all cells.""")
+                    # showing plots for DEA between conditions for all cells
+                    if util.check_file(f"{path_dea_compare}", '*.png'):
+                        html.p("""The following plots show the ranking of differentially expressed genes of one group of 
+                                cells against another.""")                        
+                        plots_from_image_files(path_dea_compare, suffix=['plot_genes_*.png'])
+                        html.div(style="height: 50px;")
+                        plots_from_image_files(path_dea_compare, suffix=['heatmap_*.png'])
+                    show_analysis_parameters(f"{path_dea_compare}/parameters.json")
+                    if path_dea_compare_ct.exists(): html.hr(style="border: 1px solid grey;")
 
-                # showing plots for DEA between conditions for each celltype
-                if util.check_file(f"{path_dea_scvi}/celltype_*", '*.png'):
-                    html.p("""The following plots show differentially expressed genes between two conditions across selected subpopulations.""")                        
-                    plots_from_image_files(path_dea_scvi, meta='celltype', suffix=['dotplot_*.png'])
-                    plots_from_image_files(path_dea_scvi, meta='celltype', suffix=['heatmap_*.png'])
+                if path_dea_compare_ct.exists():
+                    if util.check_file(f"{path_dea_compare_ct}/sample_*", ''):
+                        batch = 'sample'
+                    elif util.check_file(f"{path_dea_compare_ct}/group_*", ''):
+                        batch = 'group'        
+                    html.p("""This section presents the results of the differentially expression analysis using scvi-tools's 
+                            differential_expression function by estimating the posterior distribution of the log fold-change (LFC) 
+                            between subpopulations. The analysis identifies differentially expressed genes at the cellular 
+                            level by comparing one group of cells against another across cell types/clusters.""")
+                    # showing plots for DEA between conditions for each celltype
+                    if util.check_file(f"{path_dea_compare_ct}/celltype_*", '*.png'):
+                        html.p("""The following plots show differentially expressed genes between two conditions across cell types/clusters.""")                        
+                        plots_from_image_files(path_dea_compare_ct, meta='celltype', suffix=['dotplot_*.png'])
+                        plots_from_image_files(path_dea_compare_ct, meta='celltype', suffix=['heatmap_*.png'])
+                    show_analysis_parameters(f"{path_dea_compare_ct}/parameters.json")
 
-                # showing plots for one cluster vs rest for each sample/group
-                if util.check_file(f"{path_dea_scvi}/{batch}_*", '*.png'):
-                    html.p(f"""The following plots show differentially expressed genes between subpopulations across {batch}s.""")                        
-                    plots_from_image_files(path_dea_scvi, meta=batch, suffix=['dotplot_*.png'])
-                    plots_from_image_files(path_dea_scvi, meta=batch, suffix=['heatmap_*.png'])
-
-                show_analysis_parameters(f"{path_dea_scvi}/parameters.json")
     else:
         logger.info('Skipping differential expression analysis')
 

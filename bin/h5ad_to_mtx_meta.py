@@ -61,6 +61,8 @@ def main(argv=None):
     # util.check_and_create_folder(path_annotation_models)    
 
     adata = sc.read_h5ad(args.h5ad)
+    if "lognorm" in adata.layers:
+        adata.X = adata.layers["lognorm"].copy()
 
     scipy.io.mmwrite(Path(path_outdir, "counts.mtx"), adata.X)
     adata.var_names.to_series().to_csv(Path(path_outdir, "genes.csv"), index=False, header=False)

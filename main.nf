@@ -64,7 +64,9 @@ workflow NFCORE_EISCA {
     ch_results = Channel.fromPath(params.outdir)
     // if (params.analyses.contains('secondary') || params.analyses.contains('tertiary')){
     if (!params.run_analyses.intersect([
-        'secondary', 
+        'secondary',
+        'qccellfilter',
+        'clustering', 
         'tertiary', 
         'annotation', 
         'annotation_scvi', 

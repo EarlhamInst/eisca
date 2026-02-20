@@ -18,7 +18,8 @@ def read_samplesheet(samplesheet):
     # samplesheet may contain replicates, when it has,
     # group information from replicates and collapse with commas
     # only keep unique values using set()
-    df = df.groupby(["sample"]).agg(lambda column: ",".join(set(column)))
+    df = df.groupby("sample", sort=False).agg(lambda column: ",".join(set(map(str, column.dropna()))))
+    #df = df.groupby(["sample"]).agg(lambda column: ",".join(set(column)))
 
     return df
 
@@ -48,6 +49,9 @@ if __name__ == "__main__":
 
     # merge with data.frame, on sample information
     adata.obs = adata.obs.join(df_samplesheet, on="sample")
-    adata.write_h5ad(args["out"], compression="gzip")
+    sample_order = list(df_samplesheet.index)
+    adata.obs["sample"] = pd.Categorical(adata.obs["sample"], categories=sample_order, ordered=True)
+    adata = adata[adata.obs.sort_values("sample", kind="stable").index].copy()
 
+    adata.write_h5ad(args["out"], compression="gzip")
     print("Wrote h5ad file to {}".format(args["out"]))

@@ -97,6 +97,8 @@ def main(argv=None):
     # util.check_and_create_folder(path_annotation_models)    
 
     adata = sc.read_h5ad(args.h5ad)
+    if "lognorm" in adata.layers:
+        adata.X = adata.layers["lognorm"].copy()
 
     # train a new celltypist model
     new_model = ct.train(

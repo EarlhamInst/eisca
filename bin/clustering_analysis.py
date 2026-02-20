@@ -1,42 +1,20 @@
 #!/usr/bin/env python
 
 # Set numba chache dir to current working directory (which is a writable mount also in containers)
-# import torch.distributed as dist
 import os
 os.environ["NUMBA_CACHE_DIR"] = "."
 os.environ[ 'MPLCONFIGDIR' ] = '/tmp/'
-# IS_MAIN_PROCESS = os.environ.get("GLOBAL_RANK", "0") == "0"
 
 import scanpy as sc
 import pandas as pd
+import numpy as np
 from matplotlib import pyplot as plt
 import argparse
 import sys, json
 from pathlib import Path
-import numpy as np
 import util
-# import torch
-# import scvi
-
 
 logger = util.get_named_logger('CLUSTERING')
-
-
-
-# import torch.distributed as dist
-
-# def is_main_process():
-#     # Torch DDP sets this automatically
-#     if dist.is_available() and dist.is_initialized():
-#         return dist.get_rank() == 0
-
-#     # Fall back to environment vars if dist not yet initialized
-#     for key in ["RANK", "SLURM_PROCID", "LOCAL_RANK", "GLOBAL_RANK"]:
-#         if key in os.environ:
-#             return os.environ[key] in ("0", 0)
-#     return True
-
-# IS_MAIN_PROCESS = is_main_process()
 
 
 def parse_args(argv=None):
@@ -117,21 +95,10 @@ def parse_args(argv=None):
         default=0,
     )
     parser.add_argument(
-        "--meta",
-        default='auto',
-        choices=['auto', 'sample', 'group', 'plate'],
-        help="Choose a metadata column as the batch for clustering",
-    )
-    parser.add_argument(
-        "--fontsize",
+        "--n_top_genes",
         type=int,
-        help="Set font size for plots.",
-        default=12,
-    )
-    parser.add_argument(
-        "--pdf",
-        help="Whether to generate figure files in PDF format.",
-        action='store_true',
+        help="Set the number of highly-variable genes for PCA.",
+        default=0,
     )
     parser.add_argument(
         "--covar_cat",
@@ -162,6 +129,23 @@ def parse_args(argv=None):
         type=int,
         help="Set number of cpus/gpus for scvi training.",
         default=None,
+    )
+    parser.add_argument(
+        "--meta",
+        default='auto',
+        choices=['auto', 'sample', 'group', 'plate'],
+        help="Choose a metadata column as the batch for clustering",
+    )
+    parser.add_argument(
+        "--fontsize",
+        type=int,
+        help="Set font size for plots.",
+        default=12,
+    )
+    parser.add_argument(
+        "--pdf",
+        help="Whether to generate figure files in PDF format.",
+        action='store_true',
     )            
     return parser.parse_args(argv)
 
@@ -203,22 +187,25 @@ def main(argv=None):
     # remove doublets before clustering
     if not args.keep_doublets:
         if hasattr(adata.obs, 'predicted_doublet'):
-            adata = adata[~adata.obs['predicted_doublet']]
+            adata = adata[~adata.obs['predicted_doublet']].copy()
 
     batch_key = 'plate' if hasattr(adata.obs, 'plate') else 'sample' # correct on plates for smart-seq data
 
     # Feature selection and dimensionality reduction
-    sc.pp.highly_variable_genes(
-        adata,
-        flavor='seurat', 
-        min_mean=0.0125, 
-        max_mean=1000000000, 
-        min_disp=0.5, 
-        max_disp=50, 
-        n_bins=20, 
-        batch_key=batch_key
-    )
-    #sc.pp.highly_variable_genes(adata, n_top_genes=2000, batch_key="sample")
+    if args.n_top_genes > 0:
+        if adata.n_vars > args.n_top_genes:
+            sc.pp.highly_variable_genes(adata, n_top_genes=args.n_top_genes, batch_key=batch_key)
+    else:
+        sc.pp.highly_variable_genes(
+            adata,
+            flavor='seurat', 
+            min_mean=0.0125, 
+            max_mean=1000000000, 
+            min_disp=0.5, 
+            max_disp=50, 
+            n_bins=20, 
+            batch_key=batch_key
+        )
 
     # save the raw counts
     #s adata.raw = adata
@@ -268,6 +255,8 @@ def main(argv=None):
     else:
         # Regress out effects of total counts per cell and the percentage of mitochondrial genes expressed
         if args.regress:
+            if "lognorm" not in adata.layers:
+                adata.layers["lognorm"] = adata.X.copy()
             if not(hasattr(adata.obs, 'total_counts') and hasattr(adata.obs, 'pct_counts_mt')):
                 adata.var['mt'] = adata.var_names.str.startswith('MT-')
                 sc.pp.calculate_qc_metrics(adata, qc_vars=["mt"], inplace=True, log1p=True)
@@ -276,6 +265,8 @@ def main(argv=None):
 
         # scale the expression to have zero mean and unit variance
         if args.scale:
+            if "lognorm" not in adata.layers:
+                adata.layers["lognorm"] = adata.X.copy()
             sc.pp.scale(adata, max_value=10)
 
         # Dimensionality reduction
@@ -350,8 +341,9 @@ def main(argv=None):
                 keep_mask = keep_mask & (~is_in_small_cluster)
         adata = adata[keep_mask].copy()
 
+
     # save the AnnData into a h5ad file 
-    adata.write_h5ad(Path(path_clustering, 'adata_clustering.h5ad'))
+    adata.write_h5ad(Path(path_clustering, 'adata_clustering.h5ad'), compression="gzip")
 
     if args.meta == 'auto':
         # batch = 'group' if hasattr(adata.obs, 'group') else 'sample'
@@ -396,6 +388,18 @@ def main(argv=None):
             if args.pdf:
                 plt.savefig(Path(path_res, f"prop_leiden_res_{res:4.2f}.pdf"), bbox_inches="tight")
 
+    # umap across samples
+    with plt.rc_context():
+        sc.pl.umap(
+            adata,
+            color="sample",
+            size=2,
+            show=False
+        )
+        plt.savefig(Path(path_clustering, 'umap_samples.png'), bbox_inches="tight")
+        if args.pdf:
+            plt.savefig(Path(path_clustering, 'umap_samples.pdf'), bbox_inches="tight")
+
 
     # save analysis parameters into a json file
     with open(Path(path_clustering, 'parameters.json'), 'w') as file:
@@ -406,7 +410,8 @@ def main(argv=None):
         params.update({"--resolutions": args.resolutions})        
         if args.integrate: params.update({"--integrate": args.integrate})        
         if args.min_cluster_size > 0: params.update({"--min_cluster_size": args.min_cluster_size})    
-        if args.min_cluster_pct > 0: params.update({"--min_cluster_pct": args.min_cluster_pct})    
+        if args.min_cluster_pct > 0: params.update({"--min_cluster_pct": args.min_cluster_pct})
+        if args.n_top_genes > 0: params.update({"--n_top_genes": args.n_top_genes})    
         params.update({"--meta": args.meta})        
         if args.normalize: params.update({"--normalize": args.normalize})
         if args.regress: params.update({"--regress": args.regress})

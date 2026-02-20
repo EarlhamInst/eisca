@@ -11,7 +11,7 @@ process RANK_GENES {
     // path samplesheet
 
     output:
-    path "dea"
+    path "dea/${subfolder}"
     // path "clustering/*.h5ad",  emit: h5ad
     path "versions.yml",  emit: versions
 
@@ -20,10 +20,18 @@ process RANK_GENES {
 
     script:
     def args = task.ext.args ?: ''
+    if (args.contains('--celltype_col')) {
+        subfolder = 'compare_ct'
+    } else if (args.contains('--groupby group')) {
+        subfolder = 'compare'
+    } else {
+        subfolder = 'markers'
+    }
+
     """
     rank_genes.py \\
         --h5ad ${h5ad_filtered} \\
-        --outdir dea \\
+        --outdir dea/${subfolder} \\
         $args \\
 
 

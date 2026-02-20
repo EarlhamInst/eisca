@@ -127,6 +127,8 @@ def main(argv=None):
     util.check_and_create_folder(path_annotation)
 
     adata = sc.read_h5ad(args.h5ad)
+    if "lognorm" in adata.layers:
+        adata.X = adata.layers["lognorm"].copy()
 
     # update CellTypist cell-type models
     if args.update_models:
@@ -148,7 +150,7 @@ def main(argv=None):
 
 
     # save the AnnData into a h5ad file
-    adata.write_h5ad(Path(path_annotation, 'adata_annotation.h5ad'))
+    adata.write_h5ad(Path(path_annotation, 'adata_annotation.h5ad'), compression="gzip")
 
 
     # plot UMAPs to visualise the predicted cell-types

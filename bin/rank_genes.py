@@ -118,6 +118,8 @@ def main(argv=None):
     util.check_and_create_folder(path_analysis)
 
     adata = anndata.read_h5ad(args.h5ad)
+    if "lognorm" in adata.layers:
+        adata.X = adata.layers["lognorm"].copy()
 
     if not adata.uns.get('log1p'): # to fix issue in scanpy function
         adata.uns['log1p'] = {'base': None}

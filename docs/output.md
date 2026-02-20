@@ -152,7 +152,7 @@ For details on how to load these into R and perform further downstream analysis,
 
 ### <u>Annotation analysis</u>
 
-**Output directory: `results/annotation`**
+**Output directory: `results/annotation/celltypist`**
 - `adata_annotation.h5ad`: AnnData object file after cell-type annotation analysis.
 - `sample_*/` or `group_*/`
   - `umap_cell_type.png`: UMAP plots showing predicted cell-type clusters.
@@ -160,7 +160,7 @@ For details on how to load these into R and perform further downstream analysis,
 - `prop_majority_voting.png`: plot showing a stacked bar chart that presents the proportions of cell-type clusters across samples/groups.
 - `parameters.json`: a JSON file containing the parameter settings in the analysis.
 
-**Output directory: `results/annotation_scvi`**
+**Output directory: `results/annotation/scvi`**
 - `adata_annotation.h5ad`: AnnData object file after cell-type annotation analysis.
 - `sample_*/` or `group_*/`
   - `umap_cell_type.png`: UMAP plots showing predicted cell-type clusters.
@@ -172,18 +172,24 @@ For details on how to load these into R and perform further downstream analysis,
 ### <u>DEA analysis</u>
 
 **Output directory: `results/dea`**
-- `sample_*/` or `group_*/` or `celltype_*/` (no subfolder for DEA betweeen groups)
-  - `plot_genes_*.png`: plots showing top number of DE genes across groups.
-  - `dotplot_genes_*.png`: dot plot showing top number of DE genes across groups.
-  - `dea_*.csv`: a csv table file showing DEA results for all genes, e.g. log fold change, p-values.
-- `parameters.json`: a JSON file containing the parameter settings in the analysis.
+- `markers/`: subfolder for the identification of marker genes.
+- `compare/`: subfolder for the identification of differentially expressed genes between groups across all cells.
+- `compare_ct/`: subfolder for the identification of differentially expressed genes between groups across cell types.
+  - `sample_*/` or `group_*/` or `celltype_*/` (no subfolder for DEA betweeen groups)
+    - `plot_genes_*.png`: plots showing top number of DE genes across groups.
+    - `dotplot_genes_*.png`: dot plot showing top number of DE genes across groups.
+    - `dea_*.csv`: a csv table file showing DEA results for all genes, e.g. log fold change, p-values.
+  - `parameters.json`: a JSON file containing the parameter settings in the analysis.
 
 **Output directory: `results/dea_scvi`**
-- `sample_*/` or `group_*/` or `celltype_*/` (no subfolder for DEA betweeen groups)
-  - `dotplot_*.png`: plots showing top number of DE genes across groups.
-  - `heatmap_*.png`: dot plot showing heatmap of top number of DE genes across groups.
-  - `dea_*.csv`: a csv table file showing DEA results for all genes, e.g. log fold change, p-values.
-- `parameters.json`: a JSON file containing the parameter settings in the analysis.
+- `markers/`: subfolder for the identification of marker genes.
+- `compare/`: subfolder for the identification of differentially expressed genes between groups across all cells.
+- `compare_ct/`: subfolder for the identification of differentially expressed genes between groups across cell types.
+  - `sample_*/` or `group_*/` or `celltype_*/` (no subfolder for DEA betweeen groups)
+    - `dotplot_*.png`: plots showing top number of DE genes across groups.
+    - `heatmap_*.png`: dot plot showing heatmap of top number of DE genes across groups.
+    - `dea_*.csv`: a csv table file showing DEA results for all genes, e.g. log fold change, p-values.
+  - `parameters.json`: a JSON file containing the parameter settings in the analysis.
 
 
 ### <u>CellChat analysis</u>

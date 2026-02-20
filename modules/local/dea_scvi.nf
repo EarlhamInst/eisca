@@ -11,7 +11,7 @@ process DEA_SCVI {
     // path model_file
 
     output:
-    path "dea_scvi"
+    path "dea_scvi/${subfolder}"
     path "versions.yml",  emit: versions
 
     when:
@@ -19,10 +19,18 @@ process DEA_SCVI {
 
     script:
     def args = task.ext.args ?: ''
+    if (args.contains('--celltype_col')) {
+        subfolder = 'compare_ct'
+    } else if (args.contains('--groupby group')) {
+        subfolder = 'compare'
+    } else {
+        subfolder = 'markers'
+    }
+
     """
     dea_scvi.py \\
         --h5ad ${h5ad_filtered} \\
-        --outdir dea_scvi \\
+        --outdir dea_scvi/${subfolder} \\
         --devices $task.cpus \\
         $args \\
 

@@ -362,34 +362,6 @@ def main(argv=None):
                 if args.pdf:
                     plt.savefig(Path(path_sample, f'violin{i}_{qc}.pdf'), bbox_inches="tight")        
 
-        # hist_df = pd.concat([obs1[['n_genes_by_counts']], obs2[['n_genes_by_counts']]], axis=1)
-        # hist_df.columns = ['Before filtering', 'After filtering']
-        # plot = sns.displot(data=hist_df, kind="kde",  fill=True, palette=sns.color_palette('bright'), aspect=1.2)
-        # plot.set(xlabel='n_genes_by_counts')
-        # plot.ax.set_xlim(right=max(obs2['n_genes_by_counts']))
-        # plot.add_legend(loc="upper right")
-        # plot.savefig(Path(path_sample, 'dist1_n_genes_by_counts.png'))
-
-        # hist_df = pd.concat([obs1[['total_counts']], obs2[['total_counts']]], axis=1)
-        # hist_df.columns = ['Before filtering', 'After filtering']
-        # plot = sns.displot(data=hist_df, kind="kde",  fill=True, palette=sns.color_palette('bright'), aspect=1.2)
-        # plot.set(xlabel='total_counts')
-        # plot.ax.set_xlim(right=max(obs2['total_counts']))
-        # plot.add_legend(loc="upper right")
-        # plot.savefig(Path(path_sample, 'dist2_total_counts.png'))
-
-        # hist_df = pd.concat([obs1[['pct_counts_mt']], obs2[['pct_counts_mt']]], axis=1)
-        # hist_df.columns = ['Before filtering', 'After filtering']
-        # plot = sns.displot(data=hist_df, kind="kde",  fill=True, palette=sns.color_palette('bright'), aspect=1.2)
-        # plot.set(xlabel='pct_counts_mt')
-        # plot.ax.set_xlim(right=max(obs2['pct_counts_mt']))
-        # plot.add_legend(loc="upper right")
-        # plot.savefig(Path(path_sample, 'dist3_pct_counts_mt.png'))
-
-
-        # save a filtered and normalized h5ad file for each sample
-        # adata_s.write_h5ad(Path(path_quant_qc, f'adata_filtered_normalized_{sid}.h5ad'))
-
         adatas[sid] = adata_s
 
 
@@ -399,7 +371,8 @@ def main(argv=None):
     summary_filtered.to_csv(Path(path_cell_filtering, 'sample_summary_filtered.csv'), index=False)
 
     # combine all samples' anndata into one anndata
-    adata = anndata.concat(adatas, label="sample", index_unique="_", join="outer", merge="unique")
+    adata = anndata.concat(adatas, label="sample", index_unique=None, join="outer", merge="unique")
+    #adata = anndata.concat(adatas, label="sample", index_unique="_", join="outer", merge="unique")
     adata.layers["counts"] = adata.X.copy()  # preserve raw counts
 
     # Normalization
@@ -474,8 +447,11 @@ def main(argv=None):
             sample2merge = dict(zip(ss1['sample'], ss1['merge']))
             adata.obs['sample'] = [sample2merge.get(x, x) for x in adata.obs['sample']]
 
+    if 'group' in samplesheet.columns:
+        adata.obs['group'] = adata.obs['group'].cat.reorder_categories(list(samplesheet.group), ordered=True)
+
     # save a filtered and normalized concated h5ad file
-    adata.write_h5ad(Path(path_quant_qc, f'adata_filtered_normalized.h5ad'))
+    adata.write_h5ad(Path(path_quant_qc, f'adata_filtered_normalized.h5ad'), compression="gzip")
 
     # save analysis parameters into a json file
     with open(Path(path_quant_qc, 'parameters.json'), 'w') as file:

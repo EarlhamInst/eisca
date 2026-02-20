@@ -79,6 +79,11 @@ def parse_args(argv=None):
         help="Specify a batch key for reference data.",
     )
     parser.add_argument(
+        "--batch_key_hvg",
+        default='sample',
+        help="Specify a batch key for selecting highly variable genes.",
+    )
+    parser.add_argument(
         "--early_stop",
         help="Whether to stop training based on validation metrics.",
         action='store_true',
@@ -101,22 +106,17 @@ def parse_args(argv=None):
         default=0,
     )                
     parser.add_argument(
-        "--meta",
-        default='auto',
-        choices=['auto', 'sample', 'group', 'plate'],
-        help="Choose a metadata column as the batch for clustering",
+        "--covar_cat",
+        type=util.stringlist,
+        help="List of categorical covariates.",
+        default=[],
     )
     parser.add_argument(
-        "--fontsize",
-        type=int,
-        help="Set font size for plots.",
-        default=12,
-    )
-    parser.add_argument(
-        "--pdf",
-        help="Whether to generate figure files in PDF format.",
-        action='store_true',
-    )
+        "--covar_con",
+        type=util.stringlist,
+        help="List of continuous covariates.",
+        default=[],
+    )                
     parser.add_argument(
         "--scvi_epochs",
         type=int,
@@ -152,6 +152,23 @@ def parse_args(argv=None):
         type=float,
         help="Set minimal score for showing predicted labels in the proportion plot.",
         default=0,
+    )
+    parser.add_argument(
+        "--meta",
+        default='auto',
+        choices=['auto', 'sample', 'group', 'plate'],
+        help="Choose a metadata column as the batch for clustering",
+    )
+    parser.add_argument(
+        "--fontsize",
+        type=int,
+        help="Set font size for plots.",
+        default=12,
+    )
+    parser.add_argument(
+        "--pdf",
+        help="Whether to generate figure files in PDF format.",
+        action='store_true',
     )
     return parser.parse_args(argv)
 
@@ -190,9 +207,14 @@ def main(argv=None):
     elif adata.raw is not None:
         adata = adata.raw.to_adata()
 
+    if args.batch_key not in adata.obs.columns:
+        adata.obs[args.batch_key] = "QUERYTECH"
+
     scanvi_ref = None
     if args.h5ad_ref:
         adata_ref = sc.read_h5ad(args.h5ad_ref)
+        if args.batch_key not in adata_ref.obs.columns:
+            adata_ref.obs[args.batch_key] = "REFTECH"
         if "counts" not in adata_ref.layers: 
             adata_ref.layers["counts"] = adata_ref.X.copy()
 
@@ -213,7 +235,7 @@ def main(argv=None):
         sc.pp.highly_variable_genes(
             tmp,
             n_top_genes=args.n_top_genes,
-            batch_key=args.batch_key,
+            batch_key=args.batch_key_hvg,
             subset=False
         )
         hvg = tmp.var["highly_variable"].values
@@ -224,14 +246,26 @@ def main(argv=None):
         adata = adata[:, common_genes].copy()
         # adata = adata[:, adata_ref.var_names].copy()
 
-        scvi.model.SCVI.setup_anndata(adata_ref, batch_key=args.batch_key, layer="counts")
+        covariate_kwargs = {}
+        if args.covar_cat:
+            covariate_kwargs["categorical_covariate_keys"] = args.covar_cat
+        if args.covar_con:
+            covariate_kwargs["continuous_covariate_keys"] = args.covar_con
+
+        scvi.model.SCVI.setup_anndata(
+            adata_ref, 
+            batch_key=args.batch_key, 
+            layer="counts",
+            **covariate_kwargs
+        )
         scvi_ref = scvi.model.SCVI(
             adata_ref,
             use_layer_norm="both",
             use_batch_norm="none",
             encode_covariates=True,
-            dropout_rate=0.2,
+            dropout_rate=0.1,
             n_layers=2,
+            gene_likelihood="nb"
         )
 
         train_kwargs = {}
@@ -244,8 +278,8 @@ def main(argv=None):
         #     train_kwargs["strategy"] = "ddp_find_unused_parameters_true"
         if args.early_stop:
             train_kwargs["early_stopping"] = True
-            train_kwargs["early_stopping_patience"] = 20
-            train_kwargs["early_stopping_min_delta"] = 1e-3        
+            train_kwargs["early_stopping_patience"] = 45
+            train_kwargs["early_stopping_min_delta"] = 1e-4        
         scvi_ref.train(**train_kwargs)
 
         # if not IS_MAIN_PROCESS: sys.exit(0)
@@ -269,8 +303,8 @@ def main(argv=None):
         #     train_kwargs["strategy"] = "ddp_find_unused_parameters_true"
         if args.early_stop:
             train_kwargs["early_stopping"] = True
-            train_kwargs["early_stopping_patience"] = 20
-            train_kwargs["early_stopping_min_delta"] = 1e-3 
+            train_kwargs["early_stopping_patience"] = 45
+            train_kwargs["early_stopping_min_delta"] = 1e-4 
         scanvi_ref.train(**train_kwargs)  
         # scanvi_ref.train(max_epochs=20, n_samples_per_label=100, devices=args.devices)
 
@@ -279,10 +313,15 @@ def main(argv=None):
         # scanvi_ref.save(Path(path_annotation, 'scanvi_model'), overwrite=True)
     else:
         scanvi_ref = scvi.model.SCANVI.load(args.model_path)
-        batch_key = scanvi_ref.registry.get('setup_args').get('batch_key')
-        if batch_key:
-            if batch_key not in adata.obs.columns:
-                adata.obs[batch_key] = adata.obs[args.batch_key].copy()
+        ref_batch_key = scanvi_ref.registry.get('setup_args').get('batch_key')
+        if ref_batch_key:
+            if ref_batch_key not in adata.obs.columns:
+                # adata.obs[ref_batch_key] = adata.obs[args.batch_key].copy()
+                if ref_batch_key == "technology":
+                        adata.obs["technology"] = "QUERYTECH"
+                else:
+                    logger.error(f"Missing required batch column: {ref_batch_key}")
+                    sys.exit(2)                
         else:
             logger.error(f"Can't find 'batch_key' in the model!")
             sys.exit(2)           
@@ -292,8 +331,8 @@ def main(argv=None):
     scanvi_query = scvi.model.SCANVI.load_query_data(adata, scanvi_ref)
     scanvi_query.train(
         max_epochs=100,
-        plan_kwargs={"weight_decay": 0.0},
-        check_val_every_n_epoch=10,
+        plan_kwargs={"weight_decay": 0.0, "lr": 1e-4},
+        check_val_every_n_epoch=1,
     )
     adata.obsm['X_scanvi'] = scanvi_query.get_latent_representation()
     adata.obs['scanvi_label'] = scanvi_query.predict()
@@ -304,7 +343,7 @@ def main(argv=None):
     sc.tl.umap(adata)
 
     # save the AnnData into a h5ad file
-    adata.write_h5ad(Path(path_annotation, 'adata_annotation.h5ad'))
+    adata.write_h5ad(Path(path_annotation, 'adata_annotation.h5ad'), compression="gzip")
 
     # plot UMAPs to visualise the predicted cell-types
     if args.meta == 'auto':
@@ -416,10 +455,13 @@ def main(argv=None):
         if args.model_path: 
             params.update({"--model_path": str(args.model_path)})
         params.update({"--batch_key": str(args.batch_key)}) 
+        params.update({"--batch_key_hvg": str(args.batch_key_hvg)}) 
         params.update({"--label_key": str(args.label_key)}) 
         params.update({"--n_top_genes": str(args.n_top_genes)})
         if args.early_stop: params.update({"--early_stop": args.early_stop})  
         if args.min_label_pct > 0: params.update({"--min_label_pct": args.min_label_pct})  
+        if args.covar_cat: params.update({"--covar_cat": args.covar_cat})
+        if args.covar_con: params.update({"--covar_con": args.covar_con})  
         params.update({"--meta": args.meta})        
         if args.scvi_epochs: params.update({"--scvi_epochs": args.scvi_epochs})
         if args.scanvi_epochs: params.update({"--scanvi_epochs": args.scanvi_epochs})
