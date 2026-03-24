@@ -115,6 +115,11 @@ def parse_args(argv=None):
         default=None,
         help="Specify a list cell-types for DEA between groups, e.g. 'celltype1,celltype2'.",
     )
+    parser.add_argument(
+        "--combine",
+        help="Whether to combine all samples for marker gene identification.",
+        action='store_true',
+    )
     # parser.add_argument(
     #     "--pairing",
     #     choices=['one-to-one', 'many-to-many'],
@@ -389,6 +394,69 @@ def main(argv=None):
                 if args.pdf:
                     plt.savefig(Path(path_analysis, f"heatmap_{args.groupby}.pdf"), bbox_inches="tight")  
 
+    elif args.combine: #  grp1 vs grp2 for combined samples
+        model = scvi.model.SCVI.load_query_data(adata, model)
+        de_df_list = []
+        for group1 in args.group1 if args.group1 else [None]:
+            for group2 in args.group2 if args.group2 else [None]:
+                de_df_c = model.differential_expression(
+                    groupby=args.groupby, 
+                    group1=group1, 
+                    group2=group2,
+                )
+                de_df_list += [de_df_c]
+        de_df = pd.concat(de_df_list, axis=0, ignore_index=False)
+        eps = 1e-8
+        de_df["lfc_log2"] = np.log2((de_df["raw_normalized_mean1"] + eps) / (de_df["raw_normalized_mean2"] + eps))
+
+        de_df.to_csv(
+            Path(path_analysis, f'dea_csvi.csv'), 
+            index=True,
+        )
+
+        # marker genes doplot
+        markers = {}
+        for comp in de_df.comparison.unique():
+            comp_de_df = de_df.loc[de_df.comparison == comp]
+            comp_de_df = comp_de_df[comp_de_df["lfc_log2"] > args.deg_lfc]
+            comp_de_df = comp_de_df[comp_de_df["bayes_factor"] > args.deg_bayes]
+            comp_de_df = comp_de_df[comp_de_df["non_zeros_proportion1"] > args.deg_nzerosprop]
+            markers[comp] = comp_de_df.index.tolist()[:args.n_markers]
+
+        sc.tl.dendrogram(adata, groupby=args.groupby, use_rep="X_scvi")
+        markers = {k: v for k, v in markers.items() if len(v) > 0}
+        with plt.rc_context():
+            sc.pl.dotplot(
+                adata,
+                markers,
+                groupby=args.groupby,
+                dendrogram=True,
+                color_map="Blues",
+                swap_axes=True,
+                use_raw=False,  
+                layer="counts",
+                standard_scale="var",
+            )
+            plt.savefig(Path(path_analysis, f"dotplot_{args.groupby}.png"), bbox_inches="tight")
+            if args.pdf:
+                plt.savefig(Path(path_analysis, f"dotplot_{args.groupby}.pdf"), bbox_inches="tight")
+
+        # heatmap plot
+        Ng = len(markers)
+        with plt.rc_context():
+            sc.pl.heatmap(
+                adata,
+                markers,
+                groupby=args.groupby,
+                layer="scvi_normalized",
+                standard_scale="var",
+                dendrogram=True,
+                figsize=((Ng+3)*0.8, adata.n_obs*0.004),
+            )  
+            plt.savefig(Path(path_analysis, f"heatmap_{args.groupby}.png"), bbox_inches="tight")
+            if args.pdf:
+                plt.savefig(Path(path_analysis, f"heatmap_{args.groupby}.pdf"), bbox_inches="tight")           
+
     else: # grp1 vs grp2 for each sample/group
         for sid in sorted(adata.obs[batch].unique()):
             adata_s = adata[adata.obs[batch]==sid].copy()   
@@ -472,6 +540,7 @@ def main(argv=None):
         if args.epochs: params.update({"--epochs": args.epochs})
         if args.batch_size: params.update({"--batch_size": args.batch_size})
         if args.devices: params.update({"--devices": args.devices})
+        if args.combine: params.update({"--combine": ''})
         json.dump(params, file, indent=4)
 
 

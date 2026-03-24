@@ -52,7 +52,7 @@ def parse_args(argv=None):
     parser.add_argument(
         "--reference",
         default='rest',
-        help="If spcecify a group name, compare with respect to this group.",
+        help="If Specify a group name, compare with respect to this group.",
     )    
     parser.add_argument(
         "--method",
@@ -82,6 +82,11 @@ def parse_args(argv=None):
         default=None,
         help="Specify a list cell-types for DEA between groups, e.g. 'celltype1,celltype2'.",
     )
+    parser.add_argument(
+        "--combine",
+        help="Whether to combine all samples for marker gene identification.",
+        action='store_true',
+    )  
     parser.add_argument(
         "--fontsize",
         type=int,
@@ -228,6 +233,43 @@ def main(argv=None):
                     Path(path_analysis, f'dea_group_{gid}_vs_{args.reference}.csv'), 
                     index=False,
                 )
+
+    elif args.combine: #  one cluster vs rest for combined sample
+        sc.tl.rank_genes_groups(
+            adata, 
+            groupby, 
+            method=args.method, 
+            groups=groups if groups else 'all', 
+            reference=args.reference,
+        )
+        with plt.rc_context():
+            sc.pl.rank_genes_groups(
+                adata, 
+                n_genes=args.n_genes, 
+                sharey=True,
+                groups=groups,
+                fontsize=13,
+            )
+            plt.savefig(Path(path_analysis, f"plot_genes_{groupby}.png"), bbox_inches="tight")
+            if args.pdf:
+                plt.savefig(Path(path_analysis, f"plot_genes_{groupby}.pdf"), bbox_inches="tight")
+
+        with plt.rc_context():
+            sc.pl.rank_genes_groups_dotplot(
+                adata, 
+                n_genes=args.n_genes, 
+                groups=groups,
+            )
+            plt.savefig(Path(path_analysis, f"dotplot_genes_{groupby}.png"), bbox_inches="tight")
+            if args.pdf:
+                plt.savefig(Path(path_analysis, f"dotplot_genes_{groupby}.pdf"), bbox_inches="tight")
+
+        for gid in sorted(groups if groups else adata.obs[groupby].unique()):
+            sc.get.rank_genes_groups_df(adata, group=gid).to_csv(
+                Path(path_analysis, f'dea_{groupby}_{gid}_vs_{args.reference}.csv'), 
+                index=False,
+            )
+
     else: # one cluster vs rest for each sample/group
         for sid in sorted(adata.obs[batch].unique()):
             adata_s = adata[adata.obs[batch]==sid]   
@@ -286,6 +328,7 @@ def main(argv=None):
         if args.celltype_col:
             params.update({"--celltype_col": args.celltype_col}) 
             params.update({"--celltypes": args.celltypes}) 
+        if args.combine: params.update({"--combine": ''})
         json.dump(params, file, indent=4)
 
 

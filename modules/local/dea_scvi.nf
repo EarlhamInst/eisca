@@ -23,6 +23,8 @@ process DEA_SCVI {
         subfolder = 'compare_ct'
     } else if (args.contains('--groupby group')) {
         subfolder = 'compare'
+    } else if (args.contains('--combine')) {
+        subfolder = 'markers_cb'
     } else {
         subfolder = 'markers'
     }

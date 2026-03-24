@@ -29,7 +29,10 @@ def parse_args(argv=None):
         description="Quality control before and after cell filtering",
         # epilog="python count_reads_from_bam.py --bam file.bam --bed file.bed --json output.json",
     )
-    parser.add_argument("report", help="Report output file")
+    parser.add_argument(
+        "--report_html", 
+        help="Report output file"
+    )
     parser.add_argument(
         "--results",
         metavar="RESULTS_DIR",
@@ -275,6 +278,7 @@ def main(argv=None):
         with report.add_section('Differential expression analysis', 'DEA'):
             if path_dea.exists():
                 path_dea_markers = Path(path_dea, 'markers')
+                path_dea_markers_cb = Path(path_dea, 'markers_cb')
                 path_dea_compare = Path(path_dea, 'compare')
                 path_dea_compare_ct = Path(path_dea, 'compare_ct')
                 if path_dea_markers.exists():
@@ -290,6 +294,18 @@ def main(argv=None):
                         html.p(f"""The following plots display the ranking of genes for one of the cell clusters against the rest of the clusters across {batch}s.""")                        
                         plots_from_image_files(path_dea_markers, meta=batch, suffix=['plot_genes_*.png'])
                         plots_from_image_files(path_dea_markers, meta=batch, suffix=['dotplot_genes_*.png'])
+                    show_analysis_parameters(f"{path_dea_markers}/parameters.json")
+                    if path_dea_markers_cb.exists() or path_dea_compare.exists() or path_dea_compare_ct.exists(): html.hr(style="border: 1px solid grey;")
+
+                if path_dea_markers_cb.exists():             
+                    html.p("""This section presents the results of the differential expression analysis performed using 
+                            Scanpy’s rank_genes_groups function. These results enable the identification of marker genes 
+                            by comparing genes that are highly ranked in one cluster against all other clusters for combined data.""")
+
+                    # showing plots for one cluster vs rest for each sample/group
+                    html.p(f"""The following plots display the ranking of genes for one of the cell clusters against the rest of the clusters for combined data.""")                        
+                    plots_from_image_files(path_dea_markers_cb, suffix=['plot_genes_*.png'])
+                    plots_from_image_files(path_dea_markers_cb, suffix=['dotplot_genes_*.png'])
                     show_analysis_parameters(f"{path_dea_markers}/parameters.json")
                     if path_dea_compare.exists() or path_dea_compare_ct.exists(): html.hr(style="border: 1px solid grey;")
 
@@ -324,6 +340,7 @@ def main(argv=None):
 
             if path_dea_scvi.exists():
                 path_dea_markers = Path(path_dea_scvi, 'markers')
+                path_dea_markers_cb = Path(path_dea_scvi, 'markers_cb')
                 path_dea_compare = Path(path_dea_scvi, 'compare')
                 path_dea_compare_ct = Path(path_dea_scvi, 'compare_ct')
                 if path_dea_markers.exists():
@@ -341,6 +358,18 @@ def main(argv=None):
                         plots_from_image_files(path_dea_markers, meta=batch, suffix=['dotplot_*.png'])
                         plots_from_image_files(path_dea_markers, meta=batch, suffix=['heatmap_*.png'])
                     show_analysis_parameters(f"{path_dea_markers}/parameters.json")
+                    if path_dea_markers_cb.exists() or path_dea_compare.exists() or path_dea_compare_ct.exists(): html.hr(style="border: 1px solid grey;")
+
+                if path_dea_markers_cb.exists():              
+                    html.p("""This section presents the results of the differentially expression analysis using scvi-tools's 
+                        differential_expression function by estimating the posterior distribution of the log fold-change (LFC) 
+                        between subpopulations. These results allow users to identify marker genes by comparing genes that 
+                        are highly ranked in one cluster against all other clusters for combined data.""")
+                    # showing plots for one cluster vs rest for each sample/group
+                    html.p(f"""The following plots display the ranking of genes for one of the cell clusters against the rest of the clusters for combined data.""")                        
+                    plots_from_image_files(path_dea_markers_cb, suffix=['dotplot_*.png'])
+                    plots_from_image_files(path_dea_markers_cb, suffix=['heatmap_*.png'])
+                    show_analysis_parameters(f"{path_dea_markers_cb}/parameters.json")
                     if path_dea_compare.exists() or path_dea_compare_ct.exists(): html.hr(style="border: 1px solid grey;")
 
                 if path_dea_compare.exists():       
@@ -424,7 +453,7 @@ def main(argv=None):
         logger.info('Skipping cell-cell communication analysis')
 
 
-    report.write(args.report)
+    report.write(args.report_html)
     logger.info('Report writing finished')
     
 

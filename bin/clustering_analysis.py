@@ -173,150 +173,161 @@ def main(argv=None):
 
     adata = sc.read_h5ad(args.h5ad)
 
-    # save the original counts
-    if "counts" not in adata.layers: 
-        adata.layers["counts"] = adata.X.copy()
-        
-    # Normalization
-    if args.normalize:
-        sc.pp.normalize_total(adata, target_sum=1e4)
-        sc.pp.log1p(adata)
-    if not adata.uns.get('log1p'): # to fix issue in scanpy function
-        adata.uns['log1p'] = {'base': None}
-
-    # remove doublets before clustering
-    if not args.keep_doublets:
-        if hasattr(adata.obs, 'predicted_doublet'):
-            adata = adata[~adata.obs['predicted_doublet']].copy()
-
-    batch_key = 'plate' if hasattr(adata.obs, 'plate') else 'sample' # correct on plates for smart-seq data
-
-    # Feature selection and dimensionality reduction
-    if args.n_top_genes > 0:
-        if adata.n_vars > args.n_top_genes:
-            sc.pp.highly_variable_genes(adata, n_top_genes=args.n_top_genes, batch_key=batch_key)
-    else:
-        sc.pp.highly_variable_genes(
-            adata,
-            flavor='seurat', 
-            min_mean=0.0125, 
-            max_mean=1000000000, 
-            min_disp=0.5, 
-            max_disp=50, 
-            n_bins=20, 
-            batch_key=batch_key
-        )
-
-    # save the raw counts
-    #s adata.raw = adata
-    #s adata = adata[:, adata.var.highly_variable]
+    # perform data integration
+    batch = args.meta
+    if args.meta == 'auto':
+        if 'group' in adata.obs.columns:
+            batch = 'group'
+        elif 'plate' in adata.obs.columns:
+            batch = 'plate'
+        else: batch = 'sample'
 
 
-    if args.integrate == 'scvi':
-        import torch # only if cpu support AVX instructions
-        import scvi
-        path_scvi_model = Path(path_clustering, "scvi_model")
-        util.check_and_create_folder(path_scvi_model)
-        torch.set_float32_matmul_precision("high")
-
-        covariate_kwargs = {}
-        if args.covar_cat:
-            covariate_kwargs["categorical_covariate_keys"] = args.covar_cat
-        if args.covar_con:
-            covariate_kwargs["continuous_covariate_keys"] = args.covar_con
-        # adata.obs[batch_key] = adata.obs[batch_key].astype(str).astype('category')
-        scvi.model.SCVI.setup_anndata(
-            adata,
-            layer="counts",
-            batch_key=batch_key,
-            **covariate_kwargs
-        )
-        model = scvi.model.SCVI(adata)
-
-        train_kwargs = {}
-        if args.epochs is not None:
-            train_kwargs["max_epochs"] = args.epochs
-        if args.batch_size is not None:
-            train_kwargs["batch_size"] = args.batch_size
-        # if args.devices is not None:
-        #     train_kwargs["devices"] = args.devices
-        #     train_kwargs["strategy"] = "ddp_find_unused_parameters_true"
-        model.train(**train_kwargs)
-        
-        # if args.devices is not None:
-        # if not IS_MAIN_PROCESS: sys.exit(0)
-        # if IS_MAIN_PROCESS:
-        model.save(path_scvi_model, overwrite=True)
-        adata.obsm['X_scvi'] = model.get_latent_representation()
-        adata.layers['scvi_normalized'] = model.get_normalized_expression(library_size=1e4)
-        sc.pp.neighbors(adata, use_rep='X_scvi')
-        sc.tl.umap(adata)
-
-    else:
-        # Regress out effects of total counts per cell and the percentage of mitochondrial genes expressed
-        if args.regress:
-            if "lognorm" not in adata.layers:
-                adata.layers["lognorm"] = adata.X.copy()
-            if not(hasattr(adata.obs, 'total_counts') and hasattr(adata.obs, 'pct_counts_mt')):
-                adata.var['mt'] = adata.var_names.str.startswith('MT-')
-                sc.pp.calculate_qc_metrics(adata, qc_vars=["mt"], inplace=True, log1p=True)
-                # sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)    
-            sc.pp.regress_out(adata, ['total_counts', 'pct_counts_mt'])
-
-        # scale the expression to have zero mean and unit variance
-        if args.scale:
-            if "lognorm" not in adata.layers:
-                adata.layers["lognorm"] = adata.X.copy()
-            sc.pp.scale(adata, max_value=10)
-
-        # Dimensionality reduction
-        n_comps = min((min(adata.X[:, adata.var["highly_variable"].values].shape)-1), 50)
-        sc.tl.pca(
-            adata, 
-            n_comps=n_comps
-            # chunked=False,
-            # zero_center=False, 
-            # svd_solver='arpack'
-        )
-
-        # perform data integration
-        n_pcs = adata.obsm['X_pca'].shape[1]
-        if args.integrate == 'bbknn':
-            sc.external.pp.bbknn(adata, batch_key=batch_key, n_pcs=n_pcs)
-        elif args.integrate == 'harmony':
-            mask = ~np.isnan(adata.obsm["X_pca"]).any(axis=1)
-            if not np.all(mask):
-                logger.warning(f"Removing {np.sum(~mask)} cells with NaN PCA embeddings before Harmony.")
-                adata = adata[mask].copy()
-            sc.external.pp.harmony_integrate(adata, batch_key)
-        elif args.integrate == 'scanorama':
-            sc.external.pp.scanorama_integrate(adata, batch_key)
+    if not adata.obs.columns.str.startswith('leiden').any():
+        # save the original counts
+        if "counts" not in adata.layers: 
+            adata.layers["counts"] = adata.X.copy()
             
-        # find nearest neighbor graph constuction
-        pca_rep = 'X_pca'
-        if args.integrate == 'harmony':
-            pca_rep = 'X_pca_harmony'
-        elif args.integrate == 'scanorama':
-            pca_rep = 'X_scanorama'
-        if args.integrate != 'bbknn':
-            sc.pp.neighbors(
-                adata, 
-            n_neighbors=args.n_neighbors, 
-                n_pcs=n_pcs,
-                knn=True, 
-                method='umap', 
-                metric='euclidean',
-                use_rep=pca_rep
+        # Normalization
+        if args.normalize:
+            sc.pp.normalize_total(adata, target_sum=1e4)
+            sc.pp.log1p(adata)
+        if not adata.uns.get('log1p'): # to fix issue in scanpy function
+            adata.uns['log1p'] = {'base': None}
+
+        # remove doublets before clustering
+        if not args.keep_doublets:
+            if hasattr(adata.obs, 'predicted_doublet'):
+                adata = adata[~adata.obs['predicted_doublet']].copy()
+
+        batch_key = 'plate' if hasattr(adata.obs, 'plate') else 'sample' # correct on plates for smart-seq data
+
+        # Feature selection and dimensionality reduction
+        if args.n_top_genes > 0:
+            if adata.n_vars > args.n_top_genes:
+                sc.pp.highly_variable_genes(adata, n_top_genes=args.n_top_genes, batch_key=batch_key)
+        else:
+            sc.pp.highly_variable_genes(
+                adata,
+                flavor='seurat', 
+                min_mean=0.0125, 
+                max_mean=1000000000, 
+                min_disp=0.5, 
+                max_disp=50, 
+                n_bins=20, 
+                batch_key=batch_key
             )
-        sc.tl.umap(adata)
+
+        # save the raw counts
+        #s adata.raw = adata
+        #s adata = adata[:, adata.var.highly_variable]
 
 
-    # perform clustering using Leiden graph-clustering method
-    for res in args.resolutions:
-        sc.tl.leiden(
-            adata, n_iterations=2, 
-            key_added=f"leiden_res_{res:4.2f}", resolution=res
-        )
+        if args.integrate == 'scvi':
+            import torch # only if cpu support AVX instructions
+            import scvi
+            path_scvi_model = Path(path_clustering, "scvi_model")
+            util.check_and_create_folder(path_scvi_model)
+            torch.set_float32_matmul_precision("high")
+
+            covariate_kwargs = {}
+            if args.covar_cat:
+                covariate_kwargs["categorical_covariate_keys"] = args.covar_cat
+            if args.covar_con:
+                covariate_kwargs["continuous_covariate_keys"] = args.covar_con
+            # adata.obs[batch_key] = adata.obs[batch_key].astype(str).astype('category')
+            scvi.model.SCVI.setup_anndata(
+                adata,
+                layer="counts",
+                batch_key=batch_key,
+                **covariate_kwargs
+            )
+            model = scvi.model.SCVI(adata)
+
+            train_kwargs = {}
+            if args.epochs is not None:
+                train_kwargs["max_epochs"] = args.epochs
+            if args.batch_size is not None:
+                train_kwargs["batch_size"] = args.batch_size
+            # if args.devices is not None:
+            #     train_kwargs["devices"] = args.devices
+            #     train_kwargs["strategy"] = "ddp_find_unused_parameters_true"
+            model.train(**train_kwargs)
+            
+            # if args.devices is not None:
+            # if not IS_MAIN_PROCESS: sys.exit(0)
+            # if IS_MAIN_PROCESS:
+            model.save(path_scvi_model, overwrite=True)
+            adata.obsm['X_scvi'] = model.get_latent_representation()
+            adata.layers['scvi_normalized'] = model.get_normalized_expression(library_size=1e4)
+            sc.pp.neighbors(adata, use_rep='X_scvi')
+            sc.tl.umap(adata)
+
+        else:
+            # Regress out effects of total counts per cell and the percentage of mitochondrial genes expressed
+            if args.regress:
+                if "lognorm" not in adata.layers:
+                    adata.layers["lognorm"] = adata.X.copy()
+                if not(hasattr(adata.obs, 'total_counts') and hasattr(adata.obs, 'pct_counts_mt')):
+                    adata.var['mt'] = adata.var_names.str.startswith('MT-')
+                    sc.pp.calculate_qc_metrics(adata, qc_vars=["mt"], inplace=True, log1p=True)
+                    # sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)    
+                sc.pp.regress_out(adata, ['total_counts', 'pct_counts_mt'])
+
+            # scale the expression to have zero mean and unit variance
+            if args.scale:
+                if "lognorm" not in adata.layers:
+                    adata.layers["lognorm"] = adata.X.copy()
+                sc.pp.scale(adata, max_value=10)
+
+            # Dimensionality reduction
+            n_comps = min((min(adata.X[:, adata.var["highly_variable"].values].shape)-1), 50)
+            sc.tl.pca(
+                adata, 
+                n_comps=n_comps
+                # chunked=False,
+                # zero_center=False, 
+                # svd_solver='arpack'
+            )
+
+            # perform data integration
+            n_pcs = adata.obsm['X_pca'].shape[1]
+            if args.integrate == 'bbknn':
+                sc.external.pp.bbknn(adata, batch_key=batch_key, n_pcs=n_pcs)
+            elif args.integrate == 'harmony':
+                mask = ~np.isnan(adata.obsm["X_pca"]).any(axis=1)
+                if not np.all(mask):
+                    logger.warning(f"Removing {np.sum(~mask)} cells with NaN PCA embeddings before Harmony.")
+                    adata = adata[mask].copy()
+                sc.external.pp.harmony_integrate(adata, batch_key)
+            elif args.integrate == 'scanorama':
+                sc.external.pp.scanorama_integrate(adata, batch_key)
+                
+            # find nearest neighbor graph constuction
+            pca_rep = 'X_pca'
+            if args.integrate == 'harmony':
+                pca_rep = 'X_pca_harmony'
+            elif args.integrate == 'scanorama':
+                pca_rep = 'X_scanorama'
+            if args.integrate != 'bbknn':
+                sc.pp.neighbors(
+                    adata, 
+                n_neighbors=args.n_neighbors, 
+                    n_pcs=n_pcs,
+                    knn=True, 
+                    method='umap', 
+                    metric='euclidean',
+                    use_rep=pca_rep
+                )
+            sc.tl.umap(adata)
+
+
+        # perform clustering using Leiden graph-clustering method
+        for res in args.resolutions:
+            sc.tl.leiden(
+                adata, n_iterations=2, 
+                key_added=f"leiden_res_{res:4.2f}", resolution=res
+            )
 
     # Filter Out Small Clusters
     if args.min_cluster_size > 0:
@@ -345,15 +356,6 @@ def main(argv=None):
     # save the AnnData into a h5ad file 
     adata.write_h5ad(Path(path_clustering, 'adata_clustering.h5ad'), compression="gzip")
 
-    if args.meta == 'auto':
-        # batch = 'group' if hasattr(adata.obs, 'group') else 'sample'
-        batch = 'sample'
-        if 'group' in adata.obs.columns:
-            batch = 'group'
-        elif 'plate' in adata.obs.columns:
-            batch = 'plate' 
-    else:
-        batch = args.meta
     
     # sc.tl.leiden(adata, flavor="igraph", n_iterations=2, resolution=args.resolution)
     for sid in sorted(adata.obs[batch].unique()):
