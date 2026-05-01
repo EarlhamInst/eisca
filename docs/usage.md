@@ -173,6 +173,9 @@ Users can set the options for cell filtering in the parameter `--args_qccellfilt
 | --doublet_rate  \<int> | The expected fraction of transcriptomes that are doublets.  (default=0.1)|
 | --find_doublets  \<int> | Whether to perform doublets prediction |
 | --mt  \<string> | Specify a prefix of mitochondrial gene IDs. (default='MT-') |
+| --n_neighbors  \<int> | Specify the number of neighbors for nearest neighbor graph constuction. (default=15) |
+| --n_pcs  \<int> | Specify the number of PCA components for nearest neighbor graph constuction. (default=50) |
+| --subsample  \<int> | Subsample the specified number of cells for nearest neighbor graph constuction. (default=0) |
 | --fontsize  \<int> | Specify the font size for plots. (default=12) |
 | --pdf | An switch of whether to generate figure files in PDF format. (false by default)|
 

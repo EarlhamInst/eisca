@@ -125,6 +125,24 @@ def parse_args(argv=None):
         default='MT-',
         help="The prefix of mitochondrial gene IDs")
     parser.add_argument(
+        "--n_neighbors",
+        type=int,
+        help="Set the number of neighbors for nearest neighbor graph constuction.",
+        default=15,
+    )
+    parser.add_argument(
+        "--n_pcs",
+        type=int,
+        help="Set the number of PCs for nearest neighbor graph constuction.",
+        default=50,
+    ) 
+    parser.add_argument(
+        "--subsample",
+        type=int,
+        help="Subsample number of cells for nearest neighbor graph constuction.",
+        default=0,
+    )
+    parser.add_argument(
         "--fontsize",
         type=int,
         help="Set font size for plots.",
@@ -389,12 +407,18 @@ def main(argv=None):
     sc.tl.pca(adata)
 
     # QC after cell filtering
-    sc.pp.neighbors(adata)
-    sc.tl.umap(adata)
+    if args.subsample > 0:
+        adata_umap = sc.pp.subsample(adata, n_obs=args.subsample, copy=True)
+    else:
+        adata_umap = adata
+    sc.pp.neighbors(adata_umap, 
+                    n_neighbors=args.n_neighbors, 
+                    n_pcs=args.n_pcs)
+    sc.tl.umap(adata_umap)
 
     with plt.rc_context():
         sc.pl.umap(
-            adata,
+            adata_umap,
             color="sample",
             size=2,
             show=False
@@ -406,6 +430,7 @@ def main(argv=None):
 
     for sid in adata.obs[sample].unique():
         adata_s = adata[adata.obs[sample]==sid]
+        adata_umap_s = adata_umap[adata_umap.obs[sample] == sid]
         path_cell_filtering_s = Path(path_cell_filtering, f"sample_{sid}")
         util.check_and_create_folder(path_cell_filtering_s)
 
@@ -424,7 +449,7 @@ def main(argv=None):
 
         with plt.rc_context():
             sc.pl.umap(
-                adata_s,
+                adata_umap_s,
                 color=["log1p_total_counts", "pct_counts_mt", "log1p_n_genes_by_counts"],
                 wspace=0.3,
                 ncols=2,
@@ -473,6 +498,9 @@ def main(argv=None):
             params.update({"--doublet_rate": args.doublet_rate})
         else:
             params.update({"--find_doublets": args.find_doublets})
+        params.update({"--n_neighbors": args.n_neighbors})    
+        params.update({"--n_pcs": args.n_neighbors})
+        if args.subsample > 0: params.update({"--subsample": args.subsample})
         json.dump(params, file, indent=4)
 
 
