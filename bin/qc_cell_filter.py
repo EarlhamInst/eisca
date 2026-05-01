@@ -473,7 +473,7 @@ def main(argv=None):
             adata.obs['sample'] = [sample2merge.get(x, x) for x in adata.obs['sample']]
 
     if 'group' in samplesheet.columns:
-        adata.obs['group'] = adata.obs['group'].cat.reorder_categories(list(samplesheet.group), ordered=True)
+        adata.obs['group'] = adata.obs['group'].cat.reorder_categories(samplesheet['group'].unique(), ordered=True)
 
     # save a filtered and normalized concated h5ad file
     adata.write_h5ad(Path(path_quant_qc, f'adata_filtered_normalized.h5ad'), compression="gzip")
