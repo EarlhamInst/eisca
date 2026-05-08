@@ -322,11 +322,13 @@ def main(argv=None):
             sc.tl.umap(adata)
 
 
-        # perform clustering using Leiden graph-clustering method
-        for res in args.resolutions:
+    # perform clustering using Leiden graph-clustering method
+    for res in args.resolutions:
+        leiden_key = f"leiden_res_{res:4.2f}"
+        if leiden_key not in adata.obs.columns:
             sc.tl.leiden(
                 adata, n_iterations=2, 
-                key_added=f"leiden_res_{res:4.2f}", resolution=res
+                key_added=leiden_key, resolution=res
             )
 
     # Filter Out Small Clusters
