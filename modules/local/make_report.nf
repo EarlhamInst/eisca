@@ -41,7 +41,7 @@ scvi-tools,1.3.3
 EOF
 
     report.py \\
-        $report_name \\
+        --report_html $report_name \\
         --results ${results} \\
         --versions versions.txt \\
         --params params.json \\
