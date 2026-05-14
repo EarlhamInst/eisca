@@ -249,7 +249,7 @@ workflow EISCA {
             return
         }
 
-        if (!params.skip_analyses.contains('qccellfilter')) {
+        if (params.run_analyses.any{it=='secondary' || it=='qccellfilter'} && !params.skip_analyses.contains('qccellfilter')) {
             QC_CELL_FILTER (
                 ch_h5ad,
                 Channel.fromPath(params.input)
@@ -260,7 +260,7 @@ workflow EISCA {
             ch_h5ad = QC_CELL_FILTER.out.h5ad         
         }
         
-        if (!params.skip_analyses.contains('clustering')) {
+        if (params.run_analyses.any{it=='secondary' || it=='clustering'} && !params.skip_analyses.contains('clustering')) {
             CLUSTERING_ANALYSIS (
                 ch_h5ad
             )
