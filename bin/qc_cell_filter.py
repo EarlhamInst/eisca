@@ -211,7 +211,7 @@ def main(argv=None):
 
     # for sid, adata_s in adatas.items():
     for s, (sid, adata_s) in enumerate(adatas.items()):
-
+        percent_top = [x for x in [50, 100, 200, 500] if x < adata_s.n_vars]
         # QC on raw counts
         # mitochondrial genes
         adata_s.var["mt"] = adata_s.var_names.str.startswith(args.mt)
@@ -221,7 +221,8 @@ def main(argv=None):
         adata_s.var["hb"] = adata_s.var_names.str.contains("^HB[^(P)]")
 
         sc.pp.calculate_qc_metrics(
-            adata_s, qc_vars=["mt", "ribo", "hb"], inplace=True, log1p=True
+            adata_s, qc_vars=["mt", "ribo", "hb"], inplace=True, log1p=True,
+            percent_top=percent_top if percent_top else None
         )
 
         # obs_raw = adata_s.obs.copy()
@@ -308,14 +309,14 @@ def main(argv=None):
         if max_genes_s > 0:
             sc.pp.filter_cells(adata_s, max_genes=max_genes_s)
 
-        sc.pp.calculate_qc_metrics(adata_s, inplace=True)
+        sc.pp.calculate_qc_metrics(adata_s, inplace=True, percent_top=percent_top if percent_top else None)
 
         if args.iqr_coef > 0:
             q1 = np.percentile(adata_s.obs.total_counts.values, 25)
             q3 = np.percentile(adata_s.obs.total_counts.values, 75)
             upper_fence = q3 + args.iqr_coef*(q3 - q1)
             sc.pp.filter_cells(adata_s, max_counts=upper_fence)
-            sc.pp.calculate_qc_metrics(adata_s, inplace=True)
+            sc.pp.calculate_qc_metrics(adata_s, inplace=True, percent_top=percent_top if percent_top else None)
         # if args.iqr_coef > 0:        
         #     q1 = np.percentile(adata_s.obs.n_genes_by_counts.values, 25)
         #     q3 = np.percentile(adata_s.obs.n_genes_by_counts.values, 75)
