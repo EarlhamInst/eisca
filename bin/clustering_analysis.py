@@ -397,7 +397,7 @@ def main(argv=None):
         sc.pl.umap(
             adata,
             color="sample",
-            size=2,
+            size=max(2, min(50, 120000/adata.n_obs)),
             show=False
         )
         plt.savefig(Path(path_clustering, 'umap_samples.png'), bbox_inches="tight")
