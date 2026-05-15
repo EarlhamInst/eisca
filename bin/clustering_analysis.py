@@ -245,6 +245,7 @@ def main(argv=None):
             model = scvi.model.SCVI(adata)
 
             train_kwargs = {}
+            train_kwargs["early_stopping"] = True
             if args.epochs is not None:
                 train_kwargs["max_epochs"] = args.epochs
             if args.batch_size is not None:
