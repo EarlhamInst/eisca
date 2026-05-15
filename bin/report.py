@@ -318,8 +318,8 @@ def main(argv=None):
                         html.p("""The following plots show the ranking of differentially expressed genes of one group of 
                                 cells against another.""")
                         plots_from_image_files(path_dea_compare, suffix=['dotplot_*.png'])                       
-                        html.div(style="height: 50px;")
-                        plots_from_image_files(path_dea_compare, suffix=['dotplot_genes_*.png'])
+                        # html.div(style="height: 50px;")
+                        # plots_from_image_files(path_dea_compare, suffix=['dotplot_genes_*.png'])
                     show_analysis_parameters(f"{path_dea_compare}/parameters.json")
                     if path_dea_compare_ct.exists(): html.hr(style="border: 1px solid grey;")
 
@@ -381,7 +381,7 @@ def main(argv=None):
                     if util.check_file(f"{path_dea_compare}", '*.png'):
                         html.p("""The following plots show the ranking of differentially expressed genes of one group of 
                                 cells against another.""")                        
-                        plots_from_image_files(path_dea_compare, suffix=['plot_genes_*.png'])
+                        plots_from_image_files(path_dea_compare, suffix=['plot_*.png'])
                         html.div(style="height: 50px;")
                         plots_from_image_files(path_dea_compare, suffix=['heatmap_*.png'])
                     show_analysis_parameters(f"{path_dea_compare}/parameters.json")
