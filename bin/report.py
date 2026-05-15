@@ -306,7 +306,7 @@ def main(argv=None):
                     html.p(f"""The following plots display the ranking of genes for one of the cell clusters against the rest of the clusters for combined data.""")                        
                     plots_from_image_files(path_dea_markers_cb, suffix=['plot_genes_*.png'])
                     plots_from_image_files(path_dea_markers_cb, suffix=['dotplot_genes_*.png'])
-                    show_analysis_parameters(f"{path_dea_markers}/parameters.json")
+                    show_analysis_parameters(f"{path_dea_markers_cb}/parameters.json")
                     if path_dea_compare.exists() or path_dea_compare_ct.exists(): html.hr(style="border: 1px solid grey;")
 
                 if path_dea_compare.exists():       
