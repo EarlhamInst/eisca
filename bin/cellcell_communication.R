@@ -41,6 +41,8 @@ dir.create(args$outdir, showWarnings = FALSE)
 
 # create a cellchat object from counts and metadata
 meta <- read.csv(args$metadata, header = TRUE, row.names = 1)
+meta[[args$group]] <- gsub("0", "O", as.character(meta[[args$group]]))
+meta[[args$group]] <- factor(meta[[args$group]])
 counts <- t(readMM(args$count))
 genes <- readLines(args$gids)
 cells <- readLines(args$cids)
