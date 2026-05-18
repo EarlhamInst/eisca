@@ -154,7 +154,7 @@ For details on how to load these into R and perform further downstream analysis,
 
 ### <u>Annotation analysis</u>
 
-**Output directory: `results/annotation/celltypist`**
+**Output directory: `results/annotation_celltypist`**
 - `adata_annotation.h5ad`: AnnData object file after cell-type annotation analysis.
 - `sample_*/` or `group_*/`
   - `umap_cell_type.png`: UMAP plots showing predicted cell-type clusters.
@@ -162,7 +162,7 @@ For details on how to load these into R and perform further downstream analysis,
 - `prop_majority_voting.png`: plot showing a stacked bar chart that presents the proportions of cell-type clusters across samples/groups.
 - `parameters.json`: a JSON file containing the parameter settings in the analysis.
 
-**Output directory: `results/annotation/scvi`**
+**Output directory: `results/annotation_scvi`**
 - `adata_annotation.h5ad`: AnnData object file after cell-type annotation analysis.
 - `sample_*/` or `group_*/`
   - `umap_cell_type.png`: UMAP plots showing predicted cell-type clusters.

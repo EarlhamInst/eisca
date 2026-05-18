@@ -22,6 +22,7 @@ include { GUNZIP as GUNZIP_FASTA             } from '../modules/nf-core/gunzip/m
 include { GUNZIP as GUNZIP_GTF               } from '../modules/nf-core/gunzip/main'
 include { paramsSummaryLog; paramsSummaryMap } from 'plugin/nf-validation'
 include { getGenomeAttribute                 } from '../subworkflows/local/utils_nfcore_eisca_pipeline'
+include { H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA } from '../subworkflows/nf-core/h5ad_removebackground_barcodes_cellbender_anndata'
 
 include { QC_CELL_FILTER                    } from '../modules/local/qc_cell_filter'
 include { CLUSTERING_ANALYSIS               } from '../modules/local/clustering_analysis'
@@ -210,9 +211,16 @@ workflow EISCA {
             ch_txp2gene,
             ch_star_index
         )
-
-        //Add Versions from MTX Conversion workflow too
         ch_versions.mix(MTX_CONVERSION.out.ch_versions)
+
+        // SUBWORKFLOW: Run cellbender remove background subworkflow
+        if (!params.skip_analyses.contains('cellbender')) {
+            H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA (
+                MTX_CONVERSION.out.h5ad
+                    .filter { meta, mtx_files -> meta.input_type == 'raw' }
+                    .map { meta, mtx_files -> [ meta + [input_type: 'cellbender_filter'], mtx_files ]} // to avoid name collision
+            )
+        }
 
     }
 
@@ -226,7 +234,11 @@ workflow EISCA {
         // MODULE: Run QC and cell filtering
         ch_h5ad = Channel.empty()
         if(params.run_analyses.contains('primary')){
-            ch_h5ad = MTX_CONVERSION.out.h5ad
+            if (!params.skip_analyses.contains('cellbender')) {
+                ch_h5ad = H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA.out.h5ad 
+            } else {
+                ch_h5ad = MTX_CONVERSION.out.h5ad
+            }
         }else if(params.h5ad){
             ch_h5ad = Channel.fromPath(params.h5ad)
         }else if(params.aligner){
@@ -294,8 +306,8 @@ workflow EISCA {
         }else{
             def path1 = "${params.outdir}/clustering/adata_clustering.h5ad"
             def path2 = "${params.outdir}/qc_cell_filter/adata_filtered_normalized.h5ad"
-            def path3 = "${params.outdir}/annotation/celltypist/adata_annotation.h5ad"
-            def path4 = "${params.outdir}/annotation/scvi/adata_annotation.h5ad"
+            def path3 = "${params.outdir}/annotation_celltypist/adata_annotation.h5ad"
+            def path4 = "${params.outdir}/annotation_scvi/adata_annotation.h5ad"
             if(params.run_analyses.any{ it in ['dea', 'dea_scvi', 'cellchat'] }){
                 if(new File(path3).exists()){
                     ch_h5ad = Channel.fromPath(path3)

@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import scipy.sparse as sp
 from matplotlib import pyplot as plt
+import matplotlib.colors as mcolors
 import argparse
 import sys, json
 from pathlib import Path
@@ -370,6 +371,11 @@ def main(argv=None):
         # is_in_small_cluster = adata.obs['scanvi_label'].isin(small_clusters)
         # keep_mask = keep_mask & (~is_in_small_cluster)
         # adata = adata[keep_mask].copy()
+
+    nlabel = len(adata.obs["scanvi_label"].cat.categories)
+    if nlabel > 50:
+        cmap = plt.get_cmap("gist_ncar").resampled(nlabel)
+        adata.uns["scanvi_label_colors"] = [mcolors.to_hex(c) for c in cmap(range(nlabel))]
 
     for sid in sorted(adata.obs[batch].unique()):
         adata_s = adata[adata.obs[batch]==sid]   

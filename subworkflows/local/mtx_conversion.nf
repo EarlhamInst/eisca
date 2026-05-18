@@ -16,13 +16,6 @@ workflow MTX_CONVERSION {
 
         // Cellranger module output contains too many files which cause path collisions, we filter to the ones we need.
         // Keeping backwards compatibility with cellranger-arc.
-        // TODO: Adapt cellranger-arc subworkflow like cellranger to remove this snippet here.
-        if (params.aligner in [ 'cellrangerarc' ]) {
-            mtx_matrices = mtx_matrices.map { meta, mtx_files ->
-                    [ meta, mtx_files.findAll { it.toString().contains("filtered_feature_bc_matrix") } ]
-                }
-                .filter { meta, mtx_files -> mtx_files } // Remove any that are missing the relevant files
-        }
 
         //
         // Convert matrix to h5ad
