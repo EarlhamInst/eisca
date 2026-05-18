@@ -216,9 +216,9 @@ workflow EISCA {
         // SUBWORKFLOW: Run cellbender remove background subworkflow
         if (!params.skip_analyses.contains('cellbender')) {
             H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA (
-                MTX_CONVERSION.out.h5ad
-                    .filter { meta, mtx_files -> meta.input_type == 'raw' }
-                    .map { meta, mtx_files -> [ meta + [input_type: 'cellbender_filter'], mtx_files ]} // to avoid name collision
+                MTX_CONVERSION.out.h5ad.map { h5ad ->
+                    [[id: h5ad.baseName, input_type: 'cellbender_filter'], h5ad]
+                }
             )
         }
 
