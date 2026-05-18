@@ -235,7 +235,8 @@ workflow EISCA {
         ch_h5ad = Channel.empty()
         if(params.run_analyses.contains('primary')){
             if (!params.skip_analyses.contains('cellbender')) {
-                ch_h5ad = H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA.out.h5ad 
+                ch_h5ad = H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA.out.h5ad
+                    .map { meta, h5ad -> h5ad } 
             } else {
                 ch_h5ad = MTX_CONVERSION.out.h5ad
             }
