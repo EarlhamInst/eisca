@@ -137,8 +137,15 @@ workflow EISCA {
         }
 
         // filter gtf
-        ch_filter_gtf = ch_gtf ? GTF_GENE_FILTER ( ch_genome_fasta, ch_gtf ).gtf : []
-
+        // ch_filter_gtf = ch_gtf ? GTF_GENE_FILTER ( ch_genome_fasta, ch_gtf ).gtf : []
+        if (params.gtf || params.genome) {
+            ch_filter_gtf = GTF_GENE_FILTER(
+                ch_genome_fasta,
+                ch_gtf
+            ).gtf
+        } else {
+            ch_filter_gtf = Channel.empty()
+        }
 
         // Trimming reads
         if (params.trim) {
@@ -211,7 +218,7 @@ workflow EISCA {
             ch_txp2gene,
             ch_star_index
         )
-        ch_versions.mix(MTX_CONVERSION.out.ch_versions)
+        ch_versions = ch_versions.mix(MTX_CONVERSION.out.ch_versions)
 
     }
 
