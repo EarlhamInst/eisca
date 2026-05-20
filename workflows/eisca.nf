@@ -55,7 +55,6 @@ workflow EISCA {
 
     // samplesheet - this is passed to the MTX conversion functions to add metadata to the AnnData objects.
     ch_input = file(params.input)
-    ch_h5ad_cellbender = params.h5ad_cellbender ? Channel.fromPath(params.h5ad_cellbender) : Channel.empty()
 
     if (params.run_analyses.contains('primary')){
         protocol_config = Utils.getProtocol(workflow, log, params.aligner, params.protocol)
@@ -225,6 +224,7 @@ workflow EISCA {
     
         // MODULE: Run QC and cell filtering
         ch_h5ad = Channel.empty()
+        ch_h5ad_cellbender = Channel.empty()
         if (params.h5ad_cellbender) {
             ch_h5ad = ch_h5ad_cellbender
         } else if(params.run_analyses.contains('primary')){
