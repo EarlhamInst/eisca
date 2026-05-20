@@ -37,6 +37,13 @@ def parse_args(argv=None):
         required=True,
     )
     parser.add_argument(
+        "--h5ad_cellbender",
+        metavar="FILE_H5AD_CELLBENDER",
+        type=Path,
+        help="Input anndata data file for cellbender filtered data.",
+        required=False,
+    )
+    parser.add_argument(
         "--outdir",
         metavar="OUT_DIR",
         type=Path,
@@ -207,6 +214,7 @@ def main(argv=None):
     # adata_raw.obs['sample'] = [x.removesuffix('_raw') for x in adata_raw.obs['sample']]
 
     summary = []
+    summary_cellbender = []
     summary_filtered = []
     adatas = {}
     sample = 'plate' if hasattr(adata_raw.obs, 'plate') else 'sample'
@@ -214,7 +222,9 @@ def main(argv=None):
     for sid in samplesheet[sample].unique():
         adatas.update({sid: adata_raw[adata_raw.obs[sample]==sid]})     
 
-    # for sid, adata_s in adatas.items():
+    # QC for raw/specified counts -------------------------------------------------------------------------
+    n_cells_raw = {}
+    n_genes_raw = {}
     for s, (sid, adata_s) in enumerate(adatas.items()):
         # QC on raw counts
         # mitochondrial genes
@@ -232,12 +242,12 @@ def main(argv=None):
         # obs_raw = adata_s.obs.copy()
 
         # create summary csv file for all samples
-        n_cells_raw = adata_s.obs[adata_s.obs['n_genes_by_counts']>0].shape[0]
-        n_genes_raw = adata_s.var[adata_s.var['n_cells_by_counts']>0].shape[0]
+        n_cells_raw[sid] = adata_s.obs[adata_s.obs['n_genes_by_counts']>0].shape[0]
+        n_genes_raw[sid] = adata_s.var[adata_s.var['n_cells_by_counts']>0].shape[0]
         summary += [{
             f"{sample.capitalize()} ID": sid,
-            'Number of cells': n_cells_raw,
-            'Number of genes': n_genes_raw,
+            'Number of cells': n_cells_raw[sid],
+            'Number of genes': n_genes_raw[sid],
             'Median genes per cell': np.nanmedian(adata_s.obs['n_genes_by_counts']),
             'Median of pct-mt':  np.nanmedian(adata_s.obs['pct_counts_mt']),
         }]
@@ -269,8 +279,6 @@ def main(argv=None):
 
 
         # violin plots for n_genes_by_counts, total_counts, pct_counts_mt
-        path_sample = Path(path_quant_qc_raw, f"sample_{sid}")
-        util.check_and_create_folder(path_sample)
         for i, qc in enumerate(["n_genes_by_counts", "total_counts", "pct_counts_mt"]):
             with plt.rc_context():
                 sc.pl.violin(
@@ -294,8 +302,87 @@ def main(argv=None):
         #     )
         #     plt.savefig(Path(path_sample, 'violin_total_counts_genes_mt.png'), bbox_inches="tight")
 
+    # QC for cellbender filtered counts -------------------------------------------------------------------------
+    if args.h5ad_cellbender is not None:
+        path_quant_qc_cellbender = Path(path_quant_qc, 'cellbender_counts')
+        util.check_and_create_folder(path_quant_qc_cellbender)
+        adata_cellbender = sc.read_h5ad(args.h5ad)
+        adatas = {}
+        sample = 'plate' if hasattr(adata_cellbender.obs, 'plate') else 'sample'
+        for sid in samplesheet[sample].unique():
+            adatas.update({sid: adata_cellbender[adata_cellbender.obs[sample]==sid]})     
 
-        # Cell filtering
+        # for sid, adata_s in adatas.items():
+        for s, (sid, adata_s) in enumerate(adatas.items()):
+            # QC on raw counts
+            # mitochondrial genes
+            adata_s.var["mt"] = adata_s.var_names.str.startswith(args.mt)
+            # ribosomal genes
+            adata_s.var["ribo"] = adata_s.var_names.str.startswith(("RPS", "RPL"))
+            # hemoglobin genes
+            adata_s.var["hb"] = adata_s.var_names.str.contains("^HB[^(P)]")
+
+            sc.pp.calculate_qc_metrics(
+                adata_s, qc_vars=["mt", "ribo", "hb"], inplace=True, log1p=True,
+                percent_top=get_percent_top(adata_s)
+            )
+
+            # obs_raw = adata_s.obs.copy()
+
+            # create summary csv file for all samples
+            n_cells = adata_s.obs[adata_s.obs['n_genes_by_counts']>0].shape[0]
+            n_genes = adata_s.var[adata_s.var['n_cells_by_counts']>0].shape[0]
+            summary += [{
+                f"{sample.capitalize()} ID": sid,
+                'Number of cells': f"{n_cells} ({n_cells/n_cells_raw[sid]:.0%})",
+                'Number of genes': f"{n_genes} ({n_genes/n_genes_raw[sid]:.0%})",
+                'Median genes per cell': np.nanmedian(adata_s.obs['n_genes_by_counts']),
+                'Median of pct-mt':  np.nanmedian(adata_s.obs['pct_counts_mt']),
+            }]
+
+            # scatter plots on total_counts against n_genes_by_counts
+            path_sample = Path(path_quant_qc_cellbender, f"sample_{sid}")
+            util.check_and_create_folder(path_sample)
+
+            # with plt.rc_context():
+            #     sc.pl.scatter(adata_s, "total_counts", "n_genes_by_counts", color="pct_counts_mt", show=False)
+            #     plt.savefig(Path(path_sample, 'scatter_total_counts_genes.png'), bbox_inches="tight")
+            #     if args.pdf:
+            #         plt.savefig(Path(path_sample, 'scatter_total_counts_genes.pdf'), bbox_inches="tight")
+            
+            # with plt.rc_context():
+            #     counts = np.sort(adata_s.obs["total_counts"])[::-1]
+            #     ranks = np.arange(1, len(counts) + 1)
+            #     plt.figure(figsize=(6, 5))
+            #     plt.plot(ranks, counts, lw=2)
+            #     plt.xscale("log") #base-10 logarithm
+            #     plt.yscale("log")
+            #     plt.xlabel("Cell barcode rank")
+            #     plt.ylabel("Total counts (UMI frequency)")
+            #     plt.title("Knee plot")
+            #     plt.grid(True, which="both", lw=0.2)
+            #     plt.savefig(Path(path_sample, 'knee_plot.png'), bbox_inches="tight")
+            #     if args.pdf:
+            #         plt.savefig(Path(path_sample, 'knee_plot.pdf'), bbox_inches="tight")
+
+
+            # violin plots for n_genes_by_counts, total_counts, pct_counts_mt
+            for i, qc in enumerate(["n_genes_by_counts", "total_counts", "pct_counts_mt"]):
+                with plt.rc_context():
+                    sc.pl.violin(
+                        adata_s,
+                        [qc],
+                        jitter=0.4,
+                        show=False
+                    )
+                    plt.savefig(Path(path_sample, f'violin{i}_{qc}.png'), bbox_inches="tight")
+                    if args.pdf:
+                        plt.savefig(Path(path_sample, f'violin{i}_{qc}.pdf'), bbox_inches="tight")
+
+
+    # Cell filtering --------------------------------------------------------------------------------
+    for s, (sid, adata_s) in enumerate(adatas.items()):
+        
         min_genes_s = args.min_genes[s] if s < len(args.min_genes) else args.min_genes[-1]
         min_counts_s = args.min_counts[s] if s < len(args.min_counts) else args.min_counts[-1]
         min_cells_s = args.min_cells[s] if s < len(args.min_cells) else args.min_cells[-1]
@@ -357,8 +444,8 @@ def main(argv=None):
         n_genes = adata_s.var[adata_s.var['n_cells_by_counts']>0].shape[0]
         summary_filtered += [{
             f"{sample.capitalize()} ID": sid,
-            'Number of cells': f"{n_cells} ({n_cells/n_cells_raw:.0%})",
-            'Number of genes': f"{n_genes} ({n_genes/n_genes_raw:.0%})",
+            'Number of cells': f"{n_cells} ({n_cells/n_cells_raw[sid]:.0%})",
+            'Number of genes': f"{n_genes} ({n_genes/n_genes_raw[sid]:.0%})",
             'Median genes per cell': np.nanmedian(obs_s['n_genes_by_counts']),
             'Median of pct-mt':  np.nanmedian(obs_s['pct_counts_mt']),
         }]
@@ -390,8 +477,11 @@ def main(argv=None):
 
     summary = pd.DataFrame(summary, index=adatas.keys())
     summary.to_csv(Path(path_quant_qc, 'sample_summary.csv'), index=False)
-    summary_filtered = pd.DataFrame(summary_filtered, index=adatas.keys()) 
+    summary_filtered = pd.DataFrame(summary_filtered, index=adatas.keys())
     summary_filtered.to_csv(Path(path_cell_filtering, 'sample_summary_filtered.csv'), index=False)
+    if summary_cellbender:
+        summary_cellbender = pd.DataFrame(summary_cellbender, index=adatas.keys()) 
+        summary_cellbender.to_csv(Path(path_quant_qc_cellbender, 'sample_summary_cellbender.csv'), index=False)
 
     # combine all samples' anndata into one anndata
     adata = anndata.concat(adatas, label="sample", index_unique=None, join="outer", merge="unique")

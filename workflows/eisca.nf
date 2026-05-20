@@ -55,6 +55,7 @@ workflow EISCA {
 
     // samplesheet - this is passed to the MTX conversion functions to add metadata to the AnnData objects.
     ch_input = file(params.input)
+    ch_h5ad_cellbender = params.h5ad_cellbender ? Channel.fromPath(params.h5ad_cellbender) : Channel.empty()
 
     if (params.run_analyses.contains('primary')){
         protocol_config = Utils.getProtocol(workflow, log, params.aligner, params.protocol)
@@ -213,15 +214,6 @@ workflow EISCA {
         )
         ch_versions.mix(MTX_CONVERSION.out.ch_versions)
 
-        // SUBWORKFLOW: Run cellbender remove background subworkflow
-        if (!params.skip_analyses.contains('cellbender')) {
-            H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA (
-                MTX_CONVERSION.out.h5ad.map { h5ad ->
-                    [[id: h5ad.baseName, input_type: 'cellbender_filter'], h5ad]
-                }
-            )
-        }
-
     }
 
 
@@ -229,17 +221,14 @@ workflow EISCA {
     //===================================== Secondary anaysis stage =====================================
 
     // if (params.run_analyses.contains('secondary')){
-    if (params.run_analyses.any{ it in ['secondary', 'qccellfilter', 'clustering'] }){
+    if (params.run_analyses.any{ it in ['secondary', 'cellbender', 'qccellfilter', 'clustering'] }){
     
         // MODULE: Run QC and cell filtering
         ch_h5ad = Channel.empty()
-        if(params.run_analyses.contains('primary')){
-            if (!params.skip_analyses.contains('cellbender')) {
-                ch_h5ad = H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA.out.h5ad
-                    .map { meta, h5ad -> h5ad } 
-            } else {
-                ch_h5ad = MTX_CONVERSION.out.h5ad
-            }
+        if (params.h5ad_cellbender) {
+            ch_h5ad = ch_h5ad_cellbender
+        } else if(params.run_analyses.contains('primary')){
+            ch_h5ad = MTX_CONVERSION.out.h5ad
         }else if(params.h5ad){
             ch_h5ad = Channel.fromPath(params.h5ad)
         }else if(params.aligner){
@@ -248,13 +237,21 @@ workflow EISCA {
                 'alevin': "${params.outdir}/alevin/mtx_conversions/combined_*_matrix.h5ad",
                 'star': "${params.outdir}/star/mtx_conversions/combined_raw_matrix.h5ad"
             ].get(params.aligner)
-            def path2 = "${params.outdir}/qc_cell_filter/adata_filtered_normalized.h5ad"
-            if (params.run_analyses.any{it=='secondary' || it=='qccellfilter'} && 
+            def path2 = "${params.outdir}/cellbender/mtx_conversions/combined_*_matrix.h5ad"
+            def path3 = "${params.outdir}/qc_cell_filter/adata_filtered_normalized.h5ad"
+            if (params.run_analyses.any{it=='secondary' || it=='cellbender'} && 
                 !params.skip_analyses.contains('qccellfilter') && new File(path1).exists()) {
                 ch_h5ad = Channel.fromPath(path1)
+            }else if (params.run_analyses.any{it=='secondary' || it=='qccellfilter'} && 
+                !params.skip_analyses.contains('qccellfilter') && new File(path1).exists()) {
+                if(new File(path1).exists()) {
+                    ch_h5ad = Channel.fromPath(path1)
+                }else if(new File(path2).exists()){
+                    ch_h5ad_cellbender = Channel.fromPath(path2)
+                }
             }else if (params.run_analyses.any{it=='secondary' || it=='clustering'} && 
-                !params.skip_analyses.contains('clustering') && new File(path2).exists()) {
-                ch_h5ad = Channel.fromPath(path2)
+                !params.skip_analyses.contains('clustering') && new File(path3).exists()) {
+                ch_h5ad = Channel.fromPath(path3)
             }
         }else{
             log.warn("""No specified h5ad file found in secondary analysis, please specify an h5ad file either by setting --aligner 
@@ -262,11 +259,25 @@ workflow EISCA {
             return
         }
 
+        if (params.run_analyses.any{it=='secondary' || it=='cellbender'} && !params.skip_analyses.contains('cellbender') && !params.h5ad_cellbender) {
+            H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA (
+                ch_h5ad.map { h5ad ->
+                    [[id: h5ad.baseName, input_type: 'cellbender_filter'], h5ad]
+                }
+            )
+            ch_versions = ch_versions.mix(H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA.out.versions)
+            ch_h5ad_cellbender = H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA.out.h5ad
+                    .map { meta, h5ad -> h5ad } 
+        } else if (params.h5ad_cellbender) {
+            log.info "Using user-provided h5ad_cellbender input for downstream QC and clustering."
+        }
+
         if (params.run_analyses.any{it=='secondary' || it=='qccellfilter'} && !params.skip_analyses.contains('qccellfilter')) {
+            def ch_cellbender = ch_h5ad_cellbender ?: Channel.value([])
             QC_CELL_FILTER (
                 ch_h5ad,
+                ch_cellbender,
                 Channel.fromPath(params.input)
-                // MTX_CONVERSION.out.h5ad
             )
             // ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
             ch_versions = ch_versions.mix(QC_CELL_FILTER.out.versions)

@@ -8,6 +8,7 @@ process QC_CELL_FILTER {
 
     input:
     path h5ad_raw
+    path h5ad_cellbender
     path samplesheet
 
     output:
@@ -20,9 +21,11 @@ process QC_CELL_FILTER {
 
     script:
     def args = task.ext.args ?: ''
+    def cellbender_arg = (h5ad_cellbender && h5ad_cellbender.toString() != '[]') ? "--h5ad_cellbender ${h5ad_cellbender}" : ""
     """
     qc_cell_filter.py \\
         --h5ad ${h5ad_raw} \\
+        ${cellbender_arg} \\
         --samplesheet ${samplesheet} \\
         --outdir qc_cell_filter \\
         $args \\

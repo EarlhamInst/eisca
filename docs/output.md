@@ -127,7 +127,9 @@ For details on how to load these into R and perform further downstream analysis,
 - `raw_counts/sample_*/`
   - `scatter_total_counts_genes.png`: scatter plot shows the relationship between total read counts and the number of genes.
   - `knee_plot.png`: knee plot shows the relationship between cell barcode rank and total number of UMIs per barcode.
-  - `violin*.png`: violin plots display the distribution of cells based on the number of genes, total counts, and the percentage of counts in mitochondrial genes.  
+  - `violin*.png`: violin plots display the distribution of cells based on the number of genes, total counts, and the percentage of counts in mitochondrial genes. 
+- `cellbender_counts/sample_*/`
+  - `violin*.png`: violin plots display the distribution of cells based on the number of genes, total counts, and the percentage of counts in mitochondrial genes. 
 - `cell_filtering/`
   - `highly_variable_genes.png`: plot of mean expressions against dispersions of genes for highly variable genes.
   - `umap_samples.png`: UMAP plot between samples.

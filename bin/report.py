@@ -138,6 +138,7 @@ def main(argv=None):
 
     path_quant_qc = Path(args.results, 'qc_cell_filter')
     path_quant_qc_raw = Path(path_quant_qc, 'raw_counts')
+    path_quant_qc_cellbender = Path(path_quant_qc, 'cellbender_counts')
     # path_quant_qc_scatter = Path(path_quant_qc, 'scatter')
     # path_quant_qc_violin = Path(path_quant_qc, 'violin')
     path_cell_filtering = Path(path_quant_qc, 'cell_filtering')
@@ -180,29 +181,51 @@ def main(argv=None):
     else:
         logger.info('Skipping Quantification QC')
 
-    if path_cell_filtering.exists():
-        summary = pd.read_csv(Path(path_cell_filtering, 'sample_summary_filtered.csv')).set_index(f"{sample.capitalize()} ID")
+    if path_cell_filtering.exists() or path_quant_qc_cellbender.exists():
         with report.add_section('Cell filtering', 'Cell filtering'):
-            html.p("""This section presents the statistics and QC plots after cell filtering process. 
-                   The filtering process includes hard thresholds for minimum genes, minimum counts, 
-                   minimum cells and the percentage of counts in mitochondrial genes. Additionally, 
-                   users can set quantile limits on the number of genes. Then doublet detection is 
-                   performed using Scrublet.""")
-            html.p("""The following table shows summary statistics, with percentages in brackets 
-                   indicating the comparison to the raw counts.""")
-            DataTable.from_pandas(summary)
-            html.p("""The following violin plots display the distribution of cells based on the number of 
-                   genes, total counts, and the percentage of counts in mitochondrial genes after filtering.""")
-            plots_from_image_files(path_cell_filtering, meta='sample', ncol=3, suffix=['violin*.png'])            
-            # html.p("""The following plots show the distribution KDE curves before and after filtering 
-            #        for the number of genes, total counts, and the percentage of counts in mitochondrial genes.""")            
-            # plots_from_image_files(path_cell_filtering, meta='sample', ncol=2, suffix=['dist*.png'])
-            html.p("""The following plots show the UMAP plots
-                   for the number of genes, total counts, and the percentage of counts in mitochondrial genes.""")                        
-            plots_from_image_files(path_cell_filtering, meta='sample', suffix=['umap_total*.png'])
-            if util.check_file(f"{path_cell_filtering}/sample_*", 'umap_doublet.png'):
-                html.p("""The following plots show the UMAP plots for the predicted doublets and doublet scores.""")                        
-                plots_from_image_files(path_cell_filtering, meta='sample', suffix=['umap_doublet.png'])
+            if path_quant_qc_cellbender.exists():
+                summary = pd.read_csv(Path(path_quant_qc_cellbender, 'sample_summary_cellbender.csv')).set_index(f"{sample.capitalize()} ID")
+                html.p("""This section presents the statistics and QC plots of the count matrix after filtering empty droplets
+                        and background noise using CellBender. These plots provide insight into the quality of the 
+                        experiments and guide the filtering of low-quality cells.""")
+                html.p("""The following table shows summary statistics, with percentages in brackets 
+                    indicating the comparison to the raw counts.""")
+                DataTable.from_pandas(summary)
+                # html.p("""The following scatter plot shows the relationship between total 
+                #     read counts and the number of genes, with the percentage of counts in 
+                #     mitochondrial genes indicated by color.""")
+                # plots_from_image_files(path_quant_qc_cellbender, meta='sample', widths=['800'], suffix=['scatter*.png'])
+                # html.p("""The following knee plot shows the relationship between cell barcode rank and total 
+                #     number of UMIs per barcode. The inflection (knee) point where the UMI frequency rapidly 
+                #     drops can be good cutoff to remove empty droplets.""")
+                # plots_from_image_files(path_quant_qc_cellbender, meta='sample', widths=['500'], suffix=['knee_plot.png'])
+                html.p("""The following violin plots display the distribution of cells based on the number of 
+                    genes, total counts, and the percentage of counts in mitochondrial genes.""")
+                plots_from_image_files(path_quant_qc_cellbender, meta='sample', ncol=3, suffix=['violin*.png'])
+                html.hr(style="border: 1px solid grey;")      
+
+            if path_cell_filtering.exists():
+                summary = pd.read_csv(Path(path_cell_filtering, 'sample_summary_filtered.csv')).set_index(f"{sample.capitalize()} ID")
+                html.p("""This section presents the statistics and QC plots after cell filtering process. 
+                    The filtering process includes hard thresholds for minimum genes, minimum counts, 
+                    minimum cells and the percentage of counts in mitochondrial genes. Additionally, 
+                    users can set quantile limits on the number of genes. Then doublet detection is 
+                    performed using Scrublet.""")
+                html.p("""The following table shows summary statistics, with percentages in brackets 
+                    indicating the comparison to the raw counts.""")
+                DataTable.from_pandas(summary)
+                html.p("""The following violin plots display the distribution of cells based on the number of 
+                    genes, total counts, and the percentage of counts in mitochondrial genes after filtering.""")
+                plots_from_image_files(path_cell_filtering, meta='sample', ncol=3, suffix=['violin*.png'])            
+                # html.p("""The following plots show the distribution KDE curves before and after filtering 
+                #        for the number of genes, total counts, and the percentage of counts in mitochondrial genes.""")            
+                # plots_from_image_files(path_cell_filtering, meta='sample', ncol=2, suffix=['dist*.png'])
+                html.p("""The following plots show the UMAP plots
+                    for the number of genes, total counts, and the percentage of counts in mitochondrial genes.""")                        
+                plots_from_image_files(path_cell_filtering, meta='sample', suffix=['umap_total*.png'])
+                if util.check_file(f"{path_cell_filtering}/sample_*", 'umap_doublet.png'):
+                    html.p("""The following plots show the UMAP plots for the predicted doublets and doublet scores.""")                        
+                    plots_from_image_files(path_cell_filtering, meta='sample', suffix=['umap_doublet.png'])
             show_analysis_parameters(f"{path_quant_qc}/parameters.json")          
     else:
         logger.info('Skipping Cell filtering')
