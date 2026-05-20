@@ -225,9 +225,7 @@ workflow EISCA {
         // MODULE: Run QC and cell filtering
         ch_h5ad = Channel.empty()
         ch_h5ad_cellbender = Channel.empty()
-        if (params.h5ad_cellbender) {
-            ch_h5ad = ch_h5ad_cellbender
-        } else if(params.run_analyses.contains('primary')){
+        if(params.run_analyses.contains('primary')){
             ch_h5ad = MTX_CONVERSION.out.h5ad
         }else if(params.h5ad){
             ch_h5ad = Channel.fromPath(params.h5ad)
@@ -243,7 +241,7 @@ workflow EISCA {
                 !params.skip_analyses.contains('qccellfilter') && new File(path1).exists()) {
                 ch_h5ad = Channel.fromPath(path1)
             }else if (params.run_analyses.any{it=='secondary' || it=='qccellfilter'} && 
-                !params.skip_analyses.contains('qccellfilter') && new File(path1).exists()) {
+                !params.skip_analyses.contains('qccellfilter')) {
                 if(new File(path1).exists()) {
                     ch_h5ad = Channel.fromPath(path1)
                 }else if(new File(path2).exists()){
@@ -259,7 +257,7 @@ workflow EISCA {
             return
         }
 
-        if (params.run_analyses.any{it=='secondary' || it=='cellbender'} && !params.skip_analyses.contains('cellbender') && !params.h5ad_cellbender) {
+        if (params.run_analyses.any{it=='secondary' || it=='cellbender'} && !params.skip_analyses.contains('cellbender')) {
             H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA (
                 ch_h5ad.map { h5ad ->
                     [[id: h5ad.baseName, input_type: 'cellbender_filter'], h5ad]
@@ -268,15 +266,12 @@ workflow EISCA {
             ch_versions = ch_versions.mix(H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA.out.versions)
             ch_h5ad_cellbender = H5AD_REMOVEBACKGROUND_BARCODES_CELLBENDER_ANNDATA.out.h5ad
                     .map { meta, h5ad -> h5ad } 
-        } else if (params.h5ad_cellbender) {
-            log.info "Using user-provided h5ad_cellbender input for downstream QC and clustering."
         }
 
         if (params.run_analyses.any{it=='secondary' || it=='qccellfilter'} && !params.skip_analyses.contains('qccellfilter')) {
-            def ch_cellbender = ch_h5ad_cellbender ?: Channel.value([])
             QC_CELL_FILTER (
                 ch_h5ad,
-                ch_cellbender,
+                ch_h5ad_cellbender.ifEmpty { Channel.value([]) },
                 Channel.fromPath(params.input)
             )
             // ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
