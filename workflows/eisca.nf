@@ -245,13 +245,14 @@ workflow EISCA {
             def path2 = "${params.outdir}/cellbender/mtx_conversions/combined_*_matrix.h5ad"
             def path3 = "${params.outdir}/qc_cell_filter/adata_filtered_normalized.h5ad"
             if (params.run_analyses.any{it=='secondary' || it=='cellbender'} && 
-                !params.skip_analyses.contains('qccellfilter') && new File(path1).exists()) {
+                !params.skip_analyses.contains('cellbender') && new File(path1).exists()) {
                 ch_h5ad = Channel.fromPath(path1)
             }else if (params.run_analyses.any{it=='secondary' || it=='qccellfilter'} && 
                 !params.skip_analyses.contains('qccellfilter')) {
                 if(new File(path1).exists()) {
                     ch_h5ad = Channel.fromPath(path1)
-                }else if(new File(path2).exists()){
+                }
+                if(new File(path2).exists()){
                     ch_h5ad_cellbender = Channel.fromPath(path2)
                 }
             }else if (params.run_analyses.any{it=='secondary' || it=='clustering'} && 
