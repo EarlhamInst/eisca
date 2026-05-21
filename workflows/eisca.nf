@@ -279,7 +279,7 @@ workflow EISCA {
         if (params.run_analyses.any{it=='secondary' || it=='qccellfilter'} && !params.skip_analyses.contains('qccellfilter')) {
             QC_CELL_FILTER (
                 ch_h5ad,
-                ch_h5ad_cellbender.ifEmpty { Channel.value([]) },
+                ch_h5ad_cellbender.ifEmpty([]),
                 Channel.fromPath(params.input)
             )
             // ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
