@@ -115,8 +115,8 @@ def dump_versions(task_process):
     import pkg_resources
 
     with open("versions.yml", "w") as f:
-        f.write(f"{task_process}:\n\t")
-        f.write("\n\t".join([f"{pkg.key}: {pkg.version}" for pkg in pkg_resources.working_set]))
+        f.write(f"{task_process}:\n  ")
+        f.write("\n  ".join([f"{pkg.key}: {pkg.version}" for pkg in pkg_resources.working_set]))
 
 
 if __name__ == "__main__":
