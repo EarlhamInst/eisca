@@ -65,6 +65,7 @@ workflow NFCORE_EISCA {
     // if (params.analyses.contains('secondary') || params.analyses.contains('tertiary')){
     if (!params.run_analyses.intersect([
         'secondary',
+        'cellbender',
         'qccellfilter',
         'clustering', 
         'tertiary', 
