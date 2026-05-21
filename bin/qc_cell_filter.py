@@ -306,7 +306,7 @@ def main(argv=None):
     if args.h5ad_cellbender is not None:
         path_quant_qc_cellbender = Path(path_quant_qc, 'cellbender_counts')
         util.check_and_create_folder(path_quant_qc_cellbender)
-        adata_cellbender = sc.read_h5ad(args.h5ad)
+        adata_cellbender = sc.read_h5ad(args.h5ad_cellbender)
         adatas = {}
         sample = 'plate' if hasattr(adata_cellbender.obs, 'plate') else 'sample'
         for sid in samplesheet[sample].unique():
@@ -332,7 +332,7 @@ def main(argv=None):
             # create summary csv file for all samples
             n_cells = adata_s.obs[adata_s.obs['n_genes_by_counts']>0].shape[0]
             n_genes = adata_s.var[adata_s.var['n_cells_by_counts']>0].shape[0]
-            summary += [{
+            summary_cellbender += [{
                 f"{sample.capitalize()} ID": sid,
                 'Number of cells': f"{n_cells} ({n_cells/n_cells_raw[sid]:.0%})",
                 'Number of genes': f"{n_genes} ({n_genes/n_genes_raw[sid]:.0%})",
