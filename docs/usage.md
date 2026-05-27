@@ -105,16 +105,17 @@ The pipline has 3 analysis phases:
    - Mapping reads and quantification
    - Convert count matrix into Anndata and Securat objects
 2. **secondary phase** inculdes analyses:
-   - Single-cell quality control
-   - Cell filtering
-   - Clustering analysis
-   - Merging/integration of samples
+   - Barcode filtering (`cellbender`)
+   - Single-cell quality control (`qccellfilter`)
+   - Cell filtering (`qccellfilter`)
+   - Clustering analysis (`clustering`)
+   - Merging/integration of samples (`clustering`)
 3. **tertiary phase** inculdes analyses:    
-   - Cell type annotation
-   - Cell type annotation with scvi-tools
-   - Differential expression analysis
-   - Differential expression analysis with scvi-tools
-   - Cell-cell communication analysis
+   - Cell type annotation (`annotation`)
+   - Cell type annotation with scvi-tools (`annotation_scvi`)
+   - Differential expression analysis (`dea`)
+   - Differential expression analysis with scvi-tools (`dea_scvi`)
+   - Cell-cell communication analysis (`cellchat`)
    - Trajectory & pseudotime analysis (To be implemented)
    - Other downstream analyses (To be implemented)
 

@@ -38,6 +38,7 @@ anndata,0.10.5.post1
 celltypist,1.6.3
 cellchat,2.1.2
 scvi-tools,1.3.3
+cellbender,0.3.2
 EOF
 
     report.py \\

@@ -19,6 +19,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
   - [Salmon Alevin](#salmon-alevin--alevinqc) - Mapping & quantification by Salmon Alevin
   - [STARsolo](#starsolo) - Mapping & quantification by STAR
 - [Secondary analysis](#secondary-analysis)
+  - [Barcode filtering](#Barcode-filtering) - Filtering out empty droplets from raw data
   - [QC & cell filtering](#qc--cell-filtering) - Cell filtering and QC on raw data and filtered data
   - [Clustering analysis](#clustering-analysis) - Single-cell clustering analysis
 - Tertiary analysis
@@ -118,6 +119,18 @@ For details on how to load these into R and perform further downstream analysis,
 
 
 ## Secondary analysis
+
+### <u>Barcode filtering</u>
+
+**Output directory: `results/cellbender`**
+- `removebackground/`
+  - `combined_raw_matrix*.h5`: HDF5 files containing a detailed output of CellBender inference procedure.
+  - `combined_raw_matrix_cell_barcodes.csv`:  A plain text list of the exact cell barcodes with a posterior cell probability exceeding 0.5 to be considered real cells.
+  - `combined_raw_matrix.pdf`:  A PDF summary of the results showing (1) the evolution of the loss function during training, (2) a ranked-ordered total UMI plot along with posterior cell probabilities, and (3) a two-dimensional PCA scatter plot of the latent embedding of the expressions in cell-containing droplets. Notice the rapid drop in the cell probability after UMI rank ~ 500.
+  - `combined_raw_matrix_report.html`: An HTML report which points out a few things about the run and highlights differences between the output and the input. Issues warnings if there are any aspects of the run that look anomalous, and makes suggestions.
+- `mtx_conversions/`
+  - `combined_raw_matrix_cellbender_filter.h5ad`: AnnData object file after filtering out empty droplets.
+
 
 ### <u>QC & cell filtering</u>
 

@@ -8,7 +8,6 @@
 [![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
 [![Launch on Seqera Platform](https://img.shields.io/badge/Launch%20%F0%9F%9A%80-Seqera%20Platform-%234256e7)](https://cloud.seqera.io/launch?pipeline=https://github.com/nf-core/eisca)
 
-[![Get help on Slack](http://img.shields.io/badge/slack-nf--core%20%23eisca-4A154B?labelColor=000000&logo=slack)](https://nfcore.slack.com/channels/eisca)[![Follow on Twitter](http://img.shields.io/badge/twitter-%40nf__core-1DA1F2?labelColor=000000&logo=twitter)](https://twitter.com/nf_core)[![Follow on Mastodon](https://img.shields.io/badge/mastodon-nf__core-6364ff?labelColor=FFFFFF&logo=mastodon)](https://mstdn.science/@nf_core)[![Watch on YouTube](http://img.shields.io/badge/youtube-nf--core-FF0000?labelColor=000000&logo=youtube)](https://www.youtube.com/c/nf-core)
 
 ## Introduction
 
@@ -26,6 +25,7 @@ The modules of the pipeline are listed as follows:
   - MTX conversion - Converting count matrixes into Anndata objects
   - CONCAT counts - Concatenating input Anndata objects into one Anndata object
 - **Secondary analysis**
+  - Barcode filtering - Filtering out empty droplets from raw data
   - QC & cell filtering - cell filtering and QC on raw data and filtered data
   - Clustering analysis - single-cell clustering analysis
   - Merging/integration of samples 
