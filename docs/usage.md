@@ -166,10 +166,10 @@ Users can set the options for cell filtering in the parameter `--args_qccellfilt
 | --max_counts  \<int list> | Filter cells by maximum number of counts. You can set a value for all samples or a list of values deliminated by ',' for each sample. (default=0 means not applied) |
 | --min_cells  \<int list> | Filter genes by number of cells expressed. You can set a value for all samples or a list of values deliminated by ',' for each sample. (default=3)  |
 | --min_gcounts  \<int list> | Filter genes by the minimum counts expressed. You can set a value for all samples or a list of values deliminated by ',' for each sample. (default=0) |
-| --pct_mt  \<int> | Filter genes by the maximum percentage of mitochondrial counts. (default=20) |
+| --pct_mt  \<int> | Filter genes by the maximum percentage of mitochondrial counts. (default=10) |
 | --quantile_upper  \<float> | Filter genes by upper limit of quantile on number of genes. (default=1) |
 | --quantile_lower  \<float> | Filter genes by lower limit of quantile on number of genes. (default=0) |
-| --iqr_coef  \<int> | Remove outliers which larger than iqr_coef*IQR in total_counts. (default=2) |
+| --iqr_coef  \<int> | Remove outliers which larger than iqr_coef*IQR in total_counts. (default=1.5) |
 | --doublet_rate  \<int> | The expected fraction of transcriptomes that are doublets.  (default=0.1)|
 | --find_doublets  \<int> | Whether to perform doublets prediction |
 | --mt  \<string> | Specify a prefix of mitochondrial gene IDs. (default='MT-') |

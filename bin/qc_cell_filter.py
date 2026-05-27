@@ -96,7 +96,7 @@ def parse_args(argv=None):
         "--pct_mt",
         type=int,
         help="Filter genes by the maximum percentage of mitochondrial counts.",
-        default=20,
+        default=10,
     )
     parser.add_argument(
         "--doublet_rate",
@@ -125,7 +125,7 @@ def parse_args(argv=None):
         "--iqr_coef",
         type=float,
         help="Remove outliers which larger than iqr_coef*IQR in total_counts.",
-        default=2,
+        default=1.5,
     )
     parser.add_argument(
         "--mt",

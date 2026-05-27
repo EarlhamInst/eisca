@@ -340,6 +340,7 @@ def main(argv=None):
                     if util.check_file(f"{path_dea_compare}", '*.png'):
                         html.p("""The following plots show the ranking of differentially expressed genes of one group of 
                                 cells against another.""")
+                        plots_from_image_files(path_dea_compare, suffix=['plot_genes_*.png'])
                         plots_from_image_files(path_dea_compare, suffix=['dotplot_*.png'])                       
                         # html.div(style="height: 50px;")
                         # plots_from_image_files(path_dea_compare, suffix=['dotplot_genes_*.png'])
