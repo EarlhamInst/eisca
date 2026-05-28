@@ -13,11 +13,9 @@ import argparse
 import sys, json
 from pathlib import Path
 import util
-import random
 
 logger = util.get_named_logger('CLUSTERING')
 np.random.seed(0)
-random.seed(0)
 
 
 def parse_args(argv=None):
@@ -306,7 +304,7 @@ def main(argv=None):
                     adata = adata[mask].copy()
                 sc.external.pp.harmony_integrate(adata, batch_key, random_state=0)
             elif args.integrate == 'scanorama':
-                sc.external.pp.scanorama_integrate(adata, batch_key, seed=0)
+                sc.external.pp.scanorama_integrate(adata, batch_key)
                 
             # find nearest neighbor graph constuction
             pca_rep = 'X_pca'
