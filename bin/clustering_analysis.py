@@ -15,6 +15,7 @@ from pathlib import Path
 import util
 
 logger = util.get_named_logger('CLUSTERING')
+np.random.seed(0)
 
 
 def parse_args(argv=None):
@@ -262,7 +263,7 @@ def main(argv=None):
             adata.obsm['X_scvi'] = model.get_latent_representation()
             adata.layers['scvi_normalized'] = model.get_normalized_expression(library_size=1e4)
             sc.pp.neighbors(adata, use_rep='X_scvi')
-            sc.tl.umap(adata)
+            sc.tl.umap(adata, random_state=0)
 
         else:
             # Regress out effects of total counts per cell and the percentage of mitochondrial genes expressed
@@ -320,7 +321,7 @@ def main(argv=None):
                     metric='euclidean',
                     use_rep=pca_rep
                 )
-            sc.tl.umap(adata)
+            sc.tl.umap(adata, random_state=0)
 
 
     # perform clustering using Leiden graph-clustering method
@@ -329,7 +330,8 @@ def main(argv=None):
         if leiden_key not in adata.obs.columns:
             sc.tl.leiden(
                 adata, n_iterations=2, 
-                key_added=leiden_key, resolution=res
+                key_added=leiden_key, resolution=res,
+                random_state=0
             )
 
     # Filter Out Small Clusters
