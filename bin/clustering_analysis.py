@@ -13,9 +13,11 @@ import argparse
 import sys, json
 from pathlib import Path
 import util
+import random
 
 logger = util.get_named_logger('CLUSTERING')
 np.random.seed(0)
+random.seed(0)
 
 
 def parse_args(argv=None):
@@ -286,7 +288,8 @@ def main(argv=None):
             n_comps = min((min(adata.X[:, adata.var["highly_variable"].values].shape)-1), 50)
             sc.tl.pca(
                 adata, 
-                n_comps=n_comps
+                n_comps=n_comps,
+                random_state=0
                 # chunked=False,
                 # zero_center=False, 
                 # svd_solver='arpack'
@@ -301,9 +304,9 @@ def main(argv=None):
                 if not np.all(mask):
                     logger.warning(f"Removing {np.sum(~mask)} cells with NaN PCA embeddings before Harmony.")
                     adata = adata[mask].copy()
-                sc.external.pp.harmony_integrate(adata, batch_key)
+                sc.external.pp.harmony_integrate(adata, batch_key, random_state=0)
             elif args.integrate == 'scanorama':
-                sc.external.pp.scanorama_integrate(adata, batch_key)
+                sc.external.pp.scanorama_integrate(adata, batch_key, seed=0)
                 
             # find nearest neighbor graph constuction
             pca_rep = 'X_pca'
