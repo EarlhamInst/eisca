@@ -3,6 +3,9 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v2.7.0 - [2026-07-16]
+- add a differential expression analysis of pseudobulk samples using package PyDeseq2 
+
 ## v2.6.0 - [2026-05-20]
 - add a new module for CellBender to remove empty droplets.
 
@@ -32,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## v1.0.0 - [2024-09-19]
 
-Initial release of nf-core/eisca, created with the [nf-core](https://nf-co.re/) template.
+Initial release of EarlhamInst/eisca, created with the [nf-core](https://nf-co.re/) template.
 The pipeline including following analyses:
 1. Primary analysis:
    - Quality control of raw reads

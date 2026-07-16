@@ -13,6 +13,8 @@ import anndata
 from matplotlib import pyplot as plt
 import argparse
 import sys, json
+from scipy import sparse
+import seaborn as sns
 from pathlib import Path
 import util
 
@@ -86,7 +88,12 @@ def parse_args(argv=None):
         "--combine",
         help="Whether to combine all samples for marker gene identification.",
         action='store_true',
-    )  
+    )
+    parser.add_argument(
+        "--deseq2",
+        help="Apply PyDESeq2 for pseudobulk differential expression analysis.",
+        action='store_true',
+    )
     parser.add_argument(
         "--fontsize",
         type=int,
@@ -152,7 +159,210 @@ def main(argv=None):
 
     
     # differential expression analysis
-    if groupby == 'group': # between conditions
+    if args.deseq2: # Apply PyDESeq2 for pseudobulk differential expression analysis
+        from pydeseq2.dds import DeseqDataSet
+        from pydeseq2.ds import DeseqStats
+        if groups is None:
+            groups = list(adata.obs[groupby].unique())
+        groups.remove(args.reference)
+        
+        groups_to_test = [args.reference] + groups
+        adata_sub = adata[adata.obs[groupby].isin(groups_to_test)].copy()
+        adata_sub.obs[groupby] = pd.Categorical(adata_sub.obs[groupby], categories=groups_to_test)
+
+        # Check whether each sample belongs to only one group
+        sample_group_n = adata_sub.obs.groupby("sample")[groupby].nunique()
+        if (sample_group_n > 1).any():
+            bad_samples = sample_group_n[sample_group_n > 1].index.tolist()
+            logger.error(f"There are samples belonging to multiple groups: {bad_samples}")
+            sys.exit(2)
+
+        if "counts" in adata_sub.layers:
+            X = adata_sub.layers["counts"].copy()
+        elif adata_sub.raw is not None:
+            X = adata_sub.raw.X.copy()
+        else:
+            if 'log1p_total_counts' not in adata_sub.obs.columns:
+                X = adata_sub.X.copy()
+            else:
+                logger.error(f"PyESeq2 requre raw counts for pseudobulk DEA, \
+                             please provide raw counts in anndata.layers['counts'].")
+                sys.exit(2)     
+        if sparse.issparse(X):
+            X = X.tocsr()
+        else:
+            X = sparse.csr_matrix(X) 
+
+        # Normalise and log-transform for visualisation
+        if 'log1p_total_counts' not in adata_sub.obs.columns:
+            sc.pp.normalize_total(adata_sub, target_sum=1e4)
+            sc.pp.log1p(adata_sub)                      
+
+        # Create pseudobulk ID
+        adata_sub.obs["pseudobulk_id"] = adata_sub.obs["sample"].astype(str)
+        pseudobulk_id = pd.Categorical(adata_sub.obs["pseudobulk_id"])
+        codes = pseudobulk_id.codes
+        pb_names = pseudobulk_id.categories.astype(str)
+        # Build pseudobulk aggregation matrix
+        indicator = sparse.csr_matrix(
+            (
+                np.ones(adata_sub.n_obs),
+                (codes, np.arange(adata_sub.n_obs))
+            ),
+            shape=(len(pb_names), adata_sub.n_obs)
+        )
+        # Aggregate cell counts into sample-level pseudobulk counts
+        pb_counts = indicator @ X
+        counts_df = pd.DataFrame(
+            pb_counts.toarray(),
+            index=pb_names,
+            columns=adata_sub.var_names.astype(str)
+        )
+        counts_df = counts_df.round().astype(int)
+        # create metadata
+        metadata = (
+            adata_sub.obs[["pseudobulk_id", "sample", groupby]]
+            .drop_duplicates()
+            .set_index("pseudobulk_id")
+            .loc[counts_df.index]
+        )
+        metadata[groupby] = pd.Categorical(metadata[groupby], categories=groups_to_test)
+        # filter genes
+        keep_genes = counts_df.sum(axis=0) >= 10
+        counts_df = counts_df.loc[:, keep_genes]
+
+        # Run pyDESeq2
+        dds = DeseqDataSet(
+            counts=counts_df,
+            metadata=metadata,
+            design=f"~ {groupby}",
+            refit_cooks=True,
+            quiet=True,
+        )
+        dds.deseq2()
+
+        # statistics and plots for each group vs reference
+        for group in groups:
+            stat_group_vs_ref = DeseqStats(
+                dds,
+                contrast=[groupby, group, args.reference],
+                alpha=0.05,
+            )
+            stat_group_vs_ref.summary()
+
+            res_group_vs_ref = stat_group_vs_ref.results_df.copy()
+            res_group_vs_ref["gene"] = res_group_vs_ref.index
+            # res_group_vs_ref["comparison"] = f"{group}_vs_{args.reference}"
+            res_group_vs_ref = res_group_vs_ref.sort_values("padj")
+
+            res_group_vs_ref.to_csv(Path(path_analysis, f"pydeseq2_{group}_vs_{args.reference}.csv"), index=False)
+
+            # Ranking plot -----------------------------------------------------------
+            # Remove genes with missing p-values
+            res = res_group_vs_ref.dropna(subset=["pvalue", "log2FoldChange"]).copy()
+            # Add -log10 p-value
+            res["minus_log10_pvalue"] = -np.log10(res["pvalue"].clip(lower=1e-300))
+            # Add significance category
+            res["DE_status"] = "Not significant"
+            res.loc[(res["padj"] < 0.05) & (res["log2FoldChange"] > 1), "DE_status"] = f"Up in {group}"
+            res.loc[(res["padj"] < 0.05) & (res["log2FoldChange"] < -1), "DE_status"] = f"Up in {args.reference}"
+            tops = res.sort_values("pvalue").head(args.n_genes).copy()
+            tops = tops.sort_values("log2FoldChange", ascending=False)
+            topgenes = tops["gene"].tolist()
+            plt.figure(figsize=(9, 5))
+            plt.bar(
+                tops["gene"],
+                tops["log2FoldChange"],
+                color=["#4C72B0" if x > 0 else "#DD8452" for x in tops["log2FoldChange"]]
+            )
+            plt.axhline(0, color="black", linewidth=0.8)
+            plt.xlabel("Gene")
+            plt.ylabel("log2 fold change")
+            plt.title(f"Top DE genes: {group} vs {args.reference}")
+            plt.xticks(rotation=45, ha="right")
+            plt.tight_layout()
+            plt.savefig(Path(path_analysis, f"plot_genes_{group}_vs_{args.reference}.png"), bbox_inches="tight")
+            if args.pdf:        
+                plt.savefig(Path(path_analysis, f"plot_genes_{group}_vs_{args.reference}.pdf"), bbox_inches="tight")            
+ 
+            # Dotplot for top DEGs -----------------------------------------------------
+            groups_to_plot = [args.reference, group]
+            plt.rcParams.update({
+                "legend.fontsize": 'small',
+            })
+            adata_plot = adata_sub[adata_sub.obs[groupby].isin(groups_to_plot), topgenes].copy()
+            adata_plot.obs[groupby] = pd.Categorical(adata_plot.obs[groupby], categories=groups_to_plot)
+            sc.pl.dotplot(
+                adata_plot,
+                var_names=topgenes,
+                groupby=groupby,
+                standard_scale="var",
+                dendrogram=False,
+                swap_axes=True,
+                show=False,
+                figsize=(3, max(4, len(topgenes) * 0.3)), # Adjust height based on number of genes
+            )
+            plt.savefig(Path(path_analysis, f"dotplot_genes_{group}_vs_{args.reference}.png"), bbox_inches="tight")
+            if args.pdf:
+                plt.savefig(Path(path_analysis, f"dotplot_genes_{group}_vs_{args.reference}.pdf"), bbox_inches="tight")
+
+            # Volcano plot --------------------------------------------------------------
+            fig, ax = plt.subplots(figsize=(8, 8))
+            sns.scatterplot(
+                data=res,
+                x="log2FoldChange",
+                y="minus_log10_pvalue",
+                hue="DE_status",
+                s=40,
+                edgecolor=None,
+                ax=ax
+            )
+            ax.axvline(1, linestyle="--", color="grey", linewidth=0.8)
+            ax.axvline(-1, linestyle="--", color="grey", linewidth=0.8)
+            ax.axhline(-np.log10(0.05), linestyle="--", color="grey", linewidth=0.8)
+            ax.set_xlabel("log2 fold change")
+            ax.set_ylabel("-log10 p-value")
+            ax.set_title(f"Volcano plot: {group} vs {args.reference}")
+            ax.set_box_aspect(1) # Keep only the plotting panel square
+            # Add some margin so gene labels are not clipped
+            x_min = res["log2FoldChange"].min()
+            x_max = res["log2FoldChange"].max()
+            y_min = 0
+            y_max = res["minus_log10_pvalue"].max()
+            x_pad = (x_max - x_min) * 0.15
+            y_pad = max(y_max * 0.15, 0.5)
+            ax.set_xlim(x_min - x_pad, x_max + x_pad)
+            ax.set_ylim(y_min, y_max + y_pad)
+            # Label top 10 genes by p-value
+            top_label = res.sort_values("pvalue").head(10)
+            for _, row in top_label.iterrows():
+                ax.text(
+                    row["log2FoldChange"],
+                    row["minus_log10_pvalue"],
+                    row["gene"],
+                    fontsize=8,
+                    ha="left",
+                    va="bottom",
+                    clip_on=False
+                )
+            # Put legend outside the plot panel
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(
+                handles=handles,
+                labels=labels,
+                title="DE status",
+                loc="upper left",
+                bbox_to_anchor=(1.03, 1),
+                borderaxespad=0,
+                frameon=False
+            )
+            # Reserve right-side space for legend
+            fig.subplots_adjust(right=0.72)
+            fig.savefig(Path(path_analysis, f"volcano_{group}_vs_{args.reference}.png"), bbox_inches="tight")
+            if args.pdf:           
+                fig.savefig(Path(path_analysis, f"volcano_{group}_vs_{args.reference}.pdf"), bbox_inches="tight")    
+
+    elif groupby == 'group': # between conditions using Scanpy
         if groups == None:
             groups = list(adata.obs['group'].unique())
             groups.remove(args.reference)
@@ -329,6 +539,7 @@ def main(argv=None):
             params.update({"--celltype_col": args.celltype_col}) 
             params.update({"--celltypes": args.celltypes}) 
         if args.combine: params.update({"--combine": ''})
+        if args.deseq2: params.update({"--deseq2": ''})
         json.dump(params, file, indent=4)
 
 

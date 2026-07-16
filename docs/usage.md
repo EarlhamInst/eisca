@@ -308,6 +308,7 @@ Users can set the options for differential analysis with scvi-tools in the param
 | --deg_lfc  \<int> | Set threshold of Log Fold Change for DEGs. (default=0) |
 | --deg_bayes  \<int> | Set threshold of bayes factor for DEGs. (default=0) |
 | --deg_nzerosprop  \<int> | Set threshold of proportion of non-zero expression cells in group1 for DEGs. (default=0) |
+| --deseq2 | An switch of whether to apply PyDESeq2 for pseudobulk differential expression analysis between groups. (false by default)|
 | --meta  \<[auto, sample, group]> | Choose a metadata column as the batch classes on which the clustering UMAPs will be displayed. By default, it is set to 'auto', which means it will use the 'group' column as the batch classes if 'group' is defined in the samplesheet file; otherwise, it will use the 'sample' column. |
 | --fontsize  \<int> | Specify the font size for plots. (default=12) |
 | --pdf | An switch of whether to generate figure files in PDF format. (false by default)|
@@ -316,6 +317,7 @@ For example:
 `--args_dea_scvi "--groupby scanvi_label --epochs 10 --batch_size 50"` - perform DEA to find marker genes for cells of each cell type defined in metadata column `scanvi_label` against the rest cells at group level if `group` is defined in the metadata. Applying `--meta sample` to perform DEA at sample level.  
 `--args_dea_scvi "--groupby group --group1 Control --group2 Treatment --celltype_col scanvi_label --celltypes naive_B_cell,classical_monocyte --epochs 10 --batch_size 50"` - perform DEA to find DE genes by comparing group `Control` against the group 'Treatment' for 2 subpopulations of cell types defined in metadata column `scanvi_label`. Comparing groups are defined in metadata column `group`.  
 `--args_dea_scvi "--groupby group --group1 Control --group2 Treatment --epochs 10 --batch_size 50"` - perform DEA to find DE genes by comparing group `Control` against the group 'Treatment' for for all cells.
+`--args_dea "--deseq2 --groupby group --reference control"` - perform DEA to find DE genes between each group against the group 'control' using PyDESeq2. 
 
 
 ## Cell-cell communication analysis
