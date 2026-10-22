@@ -34,6 +34,7 @@ include { RANK_GENES                        } from '../modules/local/rank_genes'
 include { TRIMGALORE                        } from '../modules/nf-core/trimgalore/main'
 include { H5AD_TO_MTX_META                  } from '../modules/local/h5ad_to_mtx_meta'
 include { CELLCELL_COMMUNICATION            } from '../modules/local/cellcell_communication'
+include { PSEUDOTIME_ANALYSIS               } from '../modules/local/pseudotime_analysis'
 // include { MAKE_REPORT                       } from '../modules/local/make_report'
 // include { GET_PARAMS                       } from '../modules/local/get_params'
 
@@ -307,7 +308,9 @@ workflow EISCA {
         'annotation_scvi', 
         'dea', 
         'dea_scvi', 
-        'cellchat'] }){
+        'cellchat',
+        'pseudotime'
+        ] }){
     
         // Get input h5ad file
         ch_h5ad = Channel.empty()
@@ -324,7 +327,7 @@ workflow EISCA {
             def path2 = "${params.outdir}/qc_cell_filter/adata_filtered_normalized.h5ad"
             def path3 = "${params.outdir}/annotation_celltypist/adata_annotation.h5ad"
             def path4 = "${params.outdir}/annotation_scvi/adata_annotation.h5ad"
-            if(params.run_analyses.any{ it in ['dea', 'dea_scvi', 'cellchat'] }){
+            if(params.run_analyses.any{ it in ['dea', 'dea_scvi', 'cellchat', 'pseudotime'] }){
                 if(new File(path3).exists()){
                     ch_h5ad = Channel.fromPath(path3)
                 }else if(new File(path4).exists()){
@@ -402,7 +405,15 @@ workflow EISCA {
             )
             ch_versions = ch_versions.mix(CELLCELL_COMMUNICATION.out.versions)
         }
-        
+
+        if (params.run_analyses.any{it=='tertiary' || it=='pseudotime'} && !params.skip_analyses.contains('pseudotime')) {
+            PSEUDOTIME_ANALYSIS (
+                ch_h5ad,
+            )
+            ch_versions = ch_versions.mix(PSEUDOTIME_ANALYSIS.out.versions)
+        }
+
+
     }
 
     // train cell-type models for CellTypist

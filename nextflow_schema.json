@@ -196,9 +196,9 @@
                 "parity": {
                     "type": "string",
                     "default": "paired",
-                    "description": "Indicating whether the input reads are paired-end (paired) or single-end (sinlge). (default: paired)",
+                    "description": "Indicating whether the input reads are paired-end (paired) or single-end (single). (default: paired)",
                     "fa_icon": "fas fa-rainbow",
-                    "enum": ["paired", "sinlge"]
+                    "enum": ["paired", "single"]
                 }
             }
         },

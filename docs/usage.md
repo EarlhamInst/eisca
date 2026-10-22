@@ -87,7 +87,7 @@ The pipeline wutest has following parameters:
 | --txp2gene \<string> | Path to transcript to gene mapping file. |
 | --fasta \<file> | Reference FASTA gnome file |
 | --gtf \<file> | Reference GTF annotation file |
-| --parity \<string> | Indicating whether the input reads are paired-end (paired) or single-end (sinlge). It is paired by default |
+| --parity \<string> | Indicating whether the input reads are paired-end (paired) or single-end (single). It is paired by default |
 | --args_qccellfilter \<string> | Flagged argument settings for the process of Cell filtering and QC, e.g. "--min_genes 50 --min_cells 1" |
 | --args_clustering \<string> | Flagged argument settings for the process of clustering analysis, e.g. "--regress --scale" |
 | --args_annotation \<string> | Flagged argument settings for the process of cell-type annotation analysis, e.g. "--model Immune_All_Low.pkl" |
@@ -95,6 +95,7 @@ The pipeline wutest has following parameters:
 | --args_trainctmodel \<string> | Flagged argument settings for the process of training CellTypist models, e.g. "--feature_selection" |
 | --args_dea \<string> | Flagged argument settings for the process of differential expression analysis, e.g. "--groupby leiden_res_0.50" |
 | --args_dea_scvi \<string> | Flagged argument settings for the process of differential expression analysis with scvi-tools, e.g. "--groupby scanvi_label --epochs 10 --batch_size 50" |
+| --args_pseudotime \<string> | Flagged argument settings for the process of pseudotime analysis with Palantir, e.g. "--n_comp 5 --celltype_col celltype --n_waypoints 500" |
 | --save_reference \<true/false> | A Boolean option, if set true the pipeline will save all the intermediate output files apart from end results (true by default). |
 
 
@@ -339,6 +340,30 @@ Users can set the options for cell-cell communication analysis in the parameter 
 | --pdf | An switch of whether to generate figure files in PDF format. (false by default)|
 
 For example, `--args_cellchat "--group cellType --mean_method truncatedMean"`
+
+
+## Pseudotime analysis
+Users can set the options for pseudotime analysis in the parameter `--args_pseudotime`, which are as follows. 
+| Options   | Description |
+| ----------- | ----------- |
+| --n_comp  \<int> | Specify the the number of diffusion components for computing diffusion maps. (default=10)|
+| --knn  \<int> | Specify the number of nearest neighbors for diffusion map. (default=30)|
+| --alpha  \<float> | Specify Normalization parameter for the diffusion operator. (default=0)|
+| --celltype_col  \<string> | Specify a column used to define cell-types or clusters, e.g. 'cellType'. (default='cell_type')|
+| --start_celltype  \<string> | Specify a cell type or cluster to select the starting cell for pseudotime prediction. If not specified, a cell at the minimum value along diffusion component 1 will be selected automatically. |
+| --dm1max | Indicates to use the maximum value along diffusion component 1 when selecting the start cell.|
+| --end_celltypes  \<string> | Specify a list of cell-types for selecting terminal states, e.g. celltype1,celltype2. If not specified, all cell-types will be used.|
+| --n_waypoints  \<int> | Specify the number of waypoints for pseudotime analysis. You can set 500 for case of <5,000 cells. (default=1200) |
+| --q  \<float> | Specify the quantile threshold for fate assignment for selecting branch cells. (default=0.01)|
+| --eps  \<float> | Specify the tolerance offset from Quantile fate assignment for selecting branch cells. (default=0.01)|
+| --smoothness  \<float> | Specify the smoothness of the trajectories. Higher values yield smoother curves. (default=1.0)|
+| --genes  \<string> | Specify a list of genes for gene trend analysis, e.g. gene1,gene2. If not specified, top 2 highly variable genes in each branch will be selected.|
+| --meta  \<[auto, sample, group]> | Choose a metadata column to define separate subsets of cells for analysis. (default=auto)|
+| --scale  \<float> | Adjust circular plot size by scaling plot's width and height. (default=1.0) |
+| --pdf | An switch of whether to generate figure files in PDF format. (false by default)|
+
+For example, `--args_pseudotime "--celltype_col cellType --n_comp 5 --n_waypoints 500"`
+
 
 
 ## Running the pipeline

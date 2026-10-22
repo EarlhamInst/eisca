@@ -66,17 +66,33 @@ def check_and_create_folder(folder):
         os.makedirs(folder)
 
 
+# def check_file(folder_pattern, file_name):
+#     """
+#     Check if the file exists in the folder
+#     """
+#     search_pattern = os.path.join(folder_pattern, file_name)
+#     matching_files = glob.glob(search_pattern)
+
+#     if matching_files:
+#         return True
+#     else:
+#         return False 
+
+
 def check_file(folder_pattern, file_name):
     """
-    Check if the file exists in the folder
+    Check if at least one matching file exists across folders matching folder_pattern.
     """
-    search_pattern = os.path.join(folder_pattern, file_name)
-    matching_files = glob.glob(search_pattern)
-
-    if matching_files:
-        return True
-    else:
-        return False 
+    # Find all matching directories first
+    matching_dirs = glob.glob(folder_pattern)
+    
+    for d in matching_dirs:
+        if os.path.isdir(d):
+            search_pattern = os.path.join(d, file_name)
+            matching_files = [f for f in glob.glob(search_pattern) if os.path.isfile(f)]
+            if matching_files:
+                return True
+    return False
 
 
 def check_folder_for_files(folder_path):

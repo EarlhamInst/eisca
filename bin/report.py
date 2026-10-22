@@ -149,6 +149,7 @@ def main(argv=None):
     path_dea = Path(args.results, 'dea')
     path_dea_scvi = Path(args.results, 'dea_scvi')
     path_cellchat = Path(args.results, 'cellchat')
+    path_pseudotime = Path(args.results, 'pseudotime')
 
     # print(path_quant_qc) #tst
 
@@ -496,6 +497,41 @@ def main(argv=None):
             show_analysis_parameters(f"{path_cellchat}/parameters.json")                 
     else:
         logger.info('Skipping cell-cell communication analysis')
+
+
+    if path_pseudotime.exists():
+        if util.check_file(f"{path_pseudotime}/sample_*", ''):
+            batch = 'sample'
+        elif util.check_file(f"{path_pseudotime}/group_*", ''):
+            batch = 'group'        
+        with report.add_section('Pseudotime analysis', 'Pseudotime'):
+
+            html.p("""This section presents the results of pseudotime analysis using the Palantir package. These results 
+            enable users to identify cell differentiation trajectories and investigate dynamic changes in gene expression 
+            along the inferred trajectories.""")
+
+            # showing pseudotime trajectories for combined data
+            if util.check_file(f"{path_pseudotime}/{batch}_*", 'trajectory_combined_*.png'):
+                html.p(f"""The following plot shows the pseudotime trajectories for all predicted branches for each {batch} 
+                with cells coloured according to their pseudotime values where lower and higher values representing 
+                earlier and later positions along the inferred trajectories. This plot provides an overview of the inferred 
+                cell-state landscape and branching structure""")
+                plots_from_image_files(path_pseudotime, meta=batch, suffix=['trajectory_combined_*.png'])
+
+            # showing pseudotime trajectories for the batch data
+            if util.check_file(f"{path_pseudotime}/{batch}_*", 'trajectory_branch_*.png'):
+                html.p(f"""The following plots show, for each {batch}, the pseudotime trajectories for each branch separately.""")
+                plots_from_image_files(path_pseudotime, meta=batch, ncol=3, suffix=['trajectory_branch_*.png'])
+
+            # showing gene trends along trajectory branches
+            if util.check_file(f"{path_pseudotime}/{batch}_*", 'gene_trends_*.png'):
+                html.p(f"""The following plots show the gene expression trends for selected genes along the inferred pseudotime 
+                trajectories for each {batch}.""")
+                plots_from_image_files(path_pseudotime, meta=batch, ncol=3, suffix=['gene_trends_*.png'])
+
+            show_analysis_parameters(f"{path_pseudotime}/parameters.json")                 
+    else:
+        logger.info('Skipping pseudotime analysis')
 
 
     report.write(args.report_html)

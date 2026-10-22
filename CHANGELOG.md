@@ -3,7 +3,8 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v2.7.0 - [2026-07-16]
+## v2.8.0 - [2026-09-21]
+- add a pseudotime analysis using package Palantir 
 - add a differential expression analysis of pseudobulk samples using package PyDeseq2 
 
 ## v2.6.0 - [2026-05-20]

@@ -28,6 +28,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
   - [Differential expression analysis](#dea-analysis) - Single-cell differential expression analysis
   - [Differential expression analysis with scvi-tools](#dea-analysis) - Single-cell differential expression analysis with scvi-tools
   - [Cell-cell communication analysis](#cellchat-analysis) - Single-cell cell-cell communication analysis
+  - [Pseudotime analysis](#pseudotime-analysis) - Pseudotime analysis
 - [Pipeline reporting](#pipeline-reporting)
   - [Analysis report](#analysis-report) - Single-ell Analysis Report
   - [MultiQC](#multiqc) - Aggregate report describing results and QC for tools registered in nf-core
@@ -271,6 +272,21 @@ For details on how to load these into R and perform further downstream analysis,
   - `cellchat.rds`: the CellChat object created for the analysis.
 - `parameters.json`: a JSON file containing the parameter settings in the analysis.
 
+
+### <u>Pseudotime analysis</u>
+
+**Output directory: `results/pseudotime`**
+- `adata_pseudotime.h5ad`: AnnData object file after pseudotime analysis.
+- `palantir_results_all.png`: plots showing predicted pseudotime, entropy and branch probabilities.
+- `trajectory_combined.png`: the pseudotime trajectories for all predicted branches for the combined AnnData.
+- `trajectory_branch_*.png`: the pseudotime trajectories for each predicted branches for the combined AnnData.
+- `gene_trends_*.png`: the gene expression trends for selected genes along the inferred pseudotime trajectories. 
+- `sample_*/` or `group_*/`
+  - `palantir_results_*.png`: plots showing predicted pseudotime, entropy, and branch probabilities for each sample/group.
+  - `trajectory_combined_*.png`: the pseudotime trajectories for all predicted branches for each sample/group.
+  - `trajectory_branch_*.png`: the pseudotime trajectories for each predicted branches for each sample/group.
+  - `gene_trends_*.png`: the gene expression trends for selected genes along the inferred pseudotime trajectories for each sample/group. 
+- `parameters.json`: a JSON file containing the parameter settings in the analysis.
 
 
 

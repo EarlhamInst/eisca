@@ -74,6 +74,7 @@ workflow NFCORE_EISCA {
         'dea', 
         'dea_scvi', 
         'cellchat',
+        'pseudotime',
         'report']).isEmpty()){
         // GET_PARAMS()
         MAKE_REPORT (
