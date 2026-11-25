@@ -280,6 +280,8 @@ Users can set the options for differential analysis in the parameter `--args_dea
 | --celltype_col \<string> | Specify a column of the observation table to define cell-types, and DEA will be performed between groups for each cell-type. (default=None) |
 | --celltypes \<string> | Specify a subset of cell-types for DEA between groups, e.g. 'celltype1,celltype2'. By default all cell-types are used. (default=None) |
 | --combine | An switch of whether to combine all samples for marker gene identification. (false by default)|
+| --deseq2 | An switch of whether to apply PyDESeq2 for pseudobulk differential expression analysis between groups. (false by default)|
+| --pseudobulk_key \<string> | Observation column used to aggregate cells into pseudobulk replicates for PyDESeq2, e.g. 'sample'  (sample-level) or 'donor' (donor-level). Each value must belong to exactly one group in --groupby. (default=sample) |
 | --meta  \<[auto, sample, group]> | Choose a metadata column as the batch classes on which the clustering UMAPs will be displayed. By default, it is set to 'auto', which means it will use the 'group' column as the batch classes if 'group' is defined in the samplesheet file; otherwise, it will use the 'sample' column. |
 | --fontsize  \<int> | Specify the font size for plots. (default=12) |
 | --pdf | An switch of whether to generate figure files in PDF format. (false by default)|
@@ -309,7 +311,6 @@ Users can set the options for differential analysis with scvi-tools in the param
 | --deg_lfc  \<int> | Set threshold of Log Fold Change for DEGs. (default=0) |
 | --deg_bayes  \<int> | Set threshold of bayes factor for DEGs. (default=0) |
 | --deg_nzerosprop  \<int> | Set threshold of proportion of non-zero expression cells in group1 for DEGs. (default=0) |
-| --deseq2 | An switch of whether to apply PyDESeq2 for pseudobulk differential expression analysis between groups. (false by default)|
 | --meta  \<[auto, sample, group]> | Choose a metadata column as the batch classes on which the clustering UMAPs will be displayed. By default, it is set to 'auto', which means it will use the 'group' column as the batch classes if 'group' is defined in the samplesheet file; otherwise, it will use the 'sample' column. |
 | --fontsize  \<int> | Specify the font size for plots. (default=12) |
 | --pdf | An switch of whether to generate figure files in PDF format. (false by default)|

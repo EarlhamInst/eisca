@@ -278,7 +278,7 @@ def main(argv=None):
                 de_df["lfc_log2"] = np.log2((de_df["raw_normalized_mean1"] + eps) / (de_df["raw_normalized_mean2"] + eps))
 
                 de_df.to_csv(
-                    Path(path_analysis_s, f'dea_csvi_{celltype}.csv'), 
+                    Path(path_analysis_s, f'dea_scvi_{celltype}.csv'), 
                     index=True,
                 )
 
@@ -347,7 +347,7 @@ def main(argv=None):
 
             # write all dea comparisons into one csv file
             de_df.to_csv(
-                Path(path_analysis, f'dea_csvi.csv'), 
+                Path(path_analysis, f'dea_scvi.csv'), 
                 index=True,
             )
 
@@ -410,7 +410,7 @@ def main(argv=None):
         de_df["lfc_log2"] = np.log2((de_df["raw_normalized_mean1"] + eps) / (de_df["raw_normalized_mean2"] + eps))
 
         de_df.to_csv(
-            Path(path_analysis, f'dea_csvi.csv'), 
+            Path(path_analysis, f'dea_scvi.csv'), 
             index=True,
         )
 

@@ -95,6 +95,11 @@ def parse_args(argv=None):
         action='store_true',
     )
     parser.add_argument(
+        "--pseudobulk_key",
+        default='sample',
+        help="Observation column used to aggregate cells into pseudobulk replicates ",
+    )
+    parser.add_argument(
         "--fontsize",
         type=int,
         help="Set font size for plots.",
@@ -140,7 +145,7 @@ def main(argv=None):
     if not hasattr(adata.obs, groupby):
         cols = [col for col in adata.obs.columns if col.startswith(groupby)]
         if cols:
-            groupby == cols[0]
+            groupby = cols[0]
         else:
             logger.error(f"Please specify a observation column for grouping!")
             sys.exit(2)
@@ -166,16 +171,38 @@ def main(argv=None):
             groups = list(adata.obs[groupby].unique())
         groups.remove(args.reference)
         
+        pb_key = args.pseudobulk_key
+        if pb_key not in adata.obs.columns:
+            logger.error(f"Pseudobulk key '{pb_key}' not found in observation columns: {list(adata.obs.columns)}")
+            sys.exit(2)
+        if pb_key == groupby:
+            logger.error(f"--pseudobulk_key must differ from --groupby ('{groupby}').")
+            sys.exit(2)
+        logger.info(f"Pseudobulk aggregation level: '{pb_key}'")
+
         groups_to_test = [args.reference] + groups
         adata_sub = adata[adata.obs[groupby].isin(groups_to_test)].copy()
         adata_sub.obs[groupby] = pd.Categorical(adata_sub.obs[groupby], categories=groups_to_test)
 
-        # Check whether each sample belongs to only one group
-        sample_group_n = adata_sub.obs.groupby("sample")[groupby].nunique()
-        if (sample_group_n > 1).any():
-            bad_samples = sample_group_n[sample_group_n > 1].index.tolist()
-            logger.error(f"There are samples belonging to multiple groups: {bad_samples}")
+        # Drop cells without a pseudobulk key value
+        missing_key = adata_sub.obs[pb_key].isna()
+        if missing_key.any():
+            logger.warning(f"Dropping {int(missing_key.sum())} cells with missing '{pb_key}'.")
+            adata_sub = adata_sub[~missing_key.values].copy()
+
+        # Check whether each pseudobulk unit (sample/donor/...) belongs to only one group
+        key_group_n = adata_sub.obs.groupby(pb_key, observed=True)[groupby].nunique()
+        if (key_group_n > 1).any():
+            bad_keys = key_group_n[key_group_n > 1].index.tolist()
+            logger.error(f"There are '{pb_key}' values belonging to multiple groups: {bad_keys}")
             sys.exit(2)
+
+        # Report the number of pseudobulk replicates per group
+        n_rep = adata_sub.obs.groupby(groupby, observed=False)[pb_key].nunique()
+        logger.info(f"Pseudobulk replicates ('{pb_key}') per group: {n_rep.to_dict()})")
+        if (n_rep < 2).any():
+            logger.warning(f"Some groups have fewer than 2 '{pb_key}' replicates: "
+                           f"{n_rep[n_rep < 2].to_dict()}. DESeq2 results may be unreliable.")
 
         if "counts" in adata_sub.layers:
             X = adata_sub.layers["counts"].copy()
@@ -198,8 +225,8 @@ def main(argv=None):
             sc.pp.normalize_total(adata_sub, target_sum=1e4)
             sc.pp.log1p(adata_sub)                      
 
-        # Create pseudobulk ID
-        adata_sub.obs["pseudobulk_id"] = adata_sub.obs["sample"].astype(str)
+        # Create pseudobulk ID from the chosen aggregation key
+        adata_sub.obs["pseudobulk_id"] = adata_sub.obs[pb_key].astype(str)
         pseudobulk_id = pd.Categorical(adata_sub.obs["pseudobulk_id"])
         codes = pseudobulk_id.codes
         pb_names = pseudobulk_id.categories.astype(str)
@@ -219,13 +246,17 @@ def main(argv=None):
             columns=adata_sub.var_names.astype(str)
         )
         counts_df = counts_df.round().astype(int)
-        # create metadata
+        # create metadata: one row per pseudobulk unit
+        # (only the aggregation key and group, so e.g. donors with several
+        # samples still collapse to a single row)
+        meta_cols = list(dict.fromkeys(["pseudobulk_id", pb_key, groupby]))
         metadata = (
-            adata_sub.obs[["pseudobulk_id", "sample", groupby]]
-            .drop_duplicates()
+            adata_sub.obs[meta_cols]
+            .drop_duplicates(subset="pseudobulk_id")
             .set_index("pseudobulk_id")
             .loc[counts_df.index]
         )
+        metadata.index.name = None
         metadata[groupby] = pd.Categorical(metadata[groupby], categories=groups_to_test)
         # filter genes
         keep_genes = counts_df.sum(axis=0) >= 10
@@ -539,7 +570,9 @@ def main(argv=None):
             params.update({"--celltype_col": args.celltype_col}) 
             params.update({"--celltypes": args.celltypes}) 
         if args.combine: params.update({"--combine": ''})
-        if args.deseq2: params.update({"--deseq2": ''})
+        if args.deseq2:
+            params.update({"--deseq2": ''})
+            params.update({"--pseudobulk_key": args.pseudobulk_key})
         json.dump(params, file, indent=4)
 
 
